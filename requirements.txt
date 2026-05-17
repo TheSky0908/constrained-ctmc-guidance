@@ -29,7 +29,6 @@ scipy==1.13.1
 seaborn==0.13.2
 timm==0.9.16
 tokenizers==0.15.2
-torch==2.2.2
 torchmetrics==1.6.0
 torchvision==0.17.2
 tqdm==4.67.0
