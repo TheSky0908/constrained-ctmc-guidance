@@ -128,7 +128,7 @@ def main(config: omegaconf.DictConfig) -> None:
     f'Novel {label_col.upper()} 25%ile': np.percentile(qm9_dataset[label_col], q=25),
     f'Novel {label_col.upper()} Median': np.median(qm9_dataset[label_col]),
     f'Novel {label_col.upper()} 75%ile': np.percentile(qm9_dataset[label_col], q=75),
-  } | {k.capitalize(): -1 for k, v in config.guidance.items()})
+  } | ({k.capitalize(): -1 for k, v in omegaconf.OmegaConf.select(config, 'guidance', default={}).items()} if omegaconf.OmegaConf.select(config, 'guidance', default=None) is not None else {}))
 
   samples = []
   for _ in tqdm(
@@ -182,8 +182,9 @@ def main(config: omegaconf.DictConfig) -> None:
     f'Novel {label_col.upper()} 25%ile': np.percentile(mol_property_novel, q=25) if len(mol_property_novel) > 0 else 0.,
     f'Novel {label_col.upper()} Median': np.median(mol_property_novel) if len(mol_property_novel) > 0 else 0.,
     f'Novel {label_col.upper()} 75%ile': np.percentile(mol_property_novel, q=75) if len(mol_property_novel) > 0 else 0.,
-  } | {k.capitalize(): v for k, v in config.guidance.items()})
-  print("Guidance:", ", ".join([f"{k.capitalize()} - {v}" for k, v in config.guidance.items()]))
+  } | ({k.capitalize(): v for k, v in omegaconf.OmegaConf.select(config, 'guidance', default={}).items()} if omegaconf.OmegaConf.select(config, 'guidance', default=None) is not None else {}))
+  _guidance = omegaconf.OmegaConf.select(config, 'guidance', default=None)
+  print("Guidance:", ", ".join([f"{k.capitalize()} - {v}" for k, v in _guidance.items()]) if _guidance is not None else "null")
   print(f"\tValid: {valid:,d} / {len(samples):,d} ({100 * valid_pct:0.2f}%) ",
         f"Unique (of valid): {unique:,d} / {valid:,d} ({100 * unique_pct:0.2f}%) ",
         f"Novel (of valid): {novel:,d} / {valid:,d} ({100 * novel_pct:0.2f}%)\n",
