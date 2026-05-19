@@ -80,8 +80,8 @@ srun python -u -m main \
   data.label_col_pctile=null \
   data.num_classes=null \
   eval.generate_samples=False \
-  loader.global_batch_size=2048 \
-  loader.eval_global_batch_size=4096 \
+  loader.global_batch_size=256 \
+  loader.eval_global_batch_size=512 \
   backbone="dit" \
   model=small \
   model.length=32 \
