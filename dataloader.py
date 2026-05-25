@@ -235,11 +235,14 @@ def get_dataset(
     block_size=1024, num_proc=len(os.sched_getaffinity(0)),
     streaming=False, override_cache=False,
     add_special_tokens=True,
-    label_col=None, label_threshold=None):
+    label_col=None, label_threshold=None,
+    label_value_threshold=None):
   if label_col is not None:
     label_suffix = f'_label-{label_col}'
     if label_threshold is not None:
       label_suffix += f'_threshold-{label_threshold}'
+    if label_value_threshold is not None:
+      label_suffix += f'_value-le-{label_value_threshold}'
   else:
     label_suffix = ''
   if wrap:
@@ -272,7 +275,18 @@ def get_dataset(
       cache_dir=cache_dir,
       streaming=streaming,
       split='train')  # Dataset only has 'train' split
-    if label_threshold is not None:
+    if label_value_threshold is not None and label_col is not None:
+      # Absolute-value thresholding: class 1 if column <= threshold.
+      # For SA constraint: low SA (<= 3.0) is the desirable / "accessible"
+      # class. Use the existing "_threshold" naming convention so the
+      # classifier code path (which looks for f"{label_col}_threshold" first)
+      # picks it up without modification.
+      binary = (np.array(dataset[label_col])
+                <= label_value_threshold).astype(int)
+      new_col = f"{label_col}_threshold"
+      dataset = dataset.add_column(new_col, binary)
+      label_col = new_col
+    elif label_threshold is not None:
       pctiles = label_threshold if isinstance(label_threshold, list) \
         else [label_threshold]
       pctile_values = np.percentile(dataset[label_col],
@@ -480,7 +494,9 @@ def get_dataloaders(config, tokenizer, skip_train=False,
         add_special_tokens=config.data.add_special_tokens,
         label_col=label_col,
         label_threshold=getattr(config.data,
-                                'label_col_pctile', None))
+                                'label_col_pctile', None),
+        label_value_threshold=getattr(config.data,
+                                      'label_col_value_threshold', None))
   if config.data.valid in [
     'text8', 'lm1b', 'amazon_polarity', 'qm9',
     'ten_species']:
@@ -506,7 +522,9 @@ def get_dataloaders(config, tokenizer, skip_train=False,
         add_special_tokens=config.data.add_special_tokens,
         label_col=label_col,
         label_threshold=getattr(config.data,
-                                'label_col_pctile', None))
+                                'label_col_pctile', None),
+        label_value_threshold=getattr(config.data,
+                                      'label_col_value_threshold', None))
 
   if skip_train:
     train_loader = None

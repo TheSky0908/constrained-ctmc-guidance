@@ -1,0 +1,2 @@
+Seed,Sampler,Epsilon,Num Samples,Valid,Unique,Novel (of valid),Constraint Satisfaction Rate,QED Mean,QED Median,Novel QED Mean,Novel QED Median
+1,constrained-ddpm-32-eps0.1,0.1,1000,0.507,0.9980276134122288,0.7495069033530573,0.38,0.4560445622495914,0.46537459717352325,0.45559777166833015,0.46537332850178914

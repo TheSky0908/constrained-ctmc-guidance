@@ -1,0 +1,2 @@
+Seed,Sampler,Num Samples,Valid,Unique,Novel (of valid),Constraint Satisfaction Rate,QED Mean,QED Median,Novel QED Mean,Novel QED Median
+1,constrained-euler-32,1000,0.507,0.9980276134122288,0.7435897435897436,0.377,0.46065395349292093,0.4715196818542703,0.4631916396789376,0.47433919805629615

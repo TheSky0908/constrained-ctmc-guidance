@@ -1,0 +1,2 @@
+method,gamma,condition,n_total,valid,unique,novel_unconstrained,novel_strict_sa3.0,qed_novel_strict,viol_tau_3.0,viol_tau_3.5,viol_tau_4.0,viol_tau_4.5
+mdlm_dcbg,5,1,1000,298,27,181,4,0.4007758184264213,0.6644295302013423,0.6510067114093959,0.5738255033557047,0.5604026845637584

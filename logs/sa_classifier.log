@@ -1,0 +1,933 @@
+[Fri May 22 02:50:42 PM EDT 2026] starting SA classifier training on GPU=0
+[Fri May 22 02:50:42 PM EDT 2026] run_dir=/local/scratch/zhiheng/guidance/outputs/qm9/classifier/sa_score_le_3.0_absorbing_state_T-0
+/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/fabric/__init__.py:41: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+Seed set to 1
+CONFIG
+├── mode
+│   └── train_classifier                                                        
+├── diffusion
+│   └── absorbing_state                                                         
+├── backbone
+│   └── dit                                                                     
+├── classifier_backbone
+│   └── dit                                                                     
+├── parameterization
+│   └── subs                                                                    
+├── time_conditioning
+│   └── False                                                                   
+├── subs_masking
+│   └── False                                                                   
+├── zero_recon_loss
+│   └── False                                                                   
+├── T
+│   └── 0                                                                       
+├── is_vision
+│   └── False                                                                   
+├── seed
+│   └── 1                                                                       
+├── loader
+│   └── global_batch_size: 2048                                                 
+│       eval_global_batch_size: 4096                                            
+│       batch_size: 2048                                                        
+│       eval_batch_size: 4096                                                   
+│       num_workers: 255                                                        
+│       pin_memory: true                                                        
+│       persistent_workers: true                                                
+│                                                                               
+├── sampling
+│   └── use_cache: true                                                         
+│       steps: 128                                                              
+│       batch_size: 4096                                                        
+│       num_sample_batches: 2                                                   
+│       use_float64: false                                                      
+│                                                                               
+├── training
+│   └── ema: 0.9999                                                             
+│       antithetic_sampling: true                                               
+│       importance_sampling: false                                              
+│       sampling_eps: 0.001                                                     
+│       change_of_variables: false                                              
+│       compute_loss_on_pad_tokens: false                                       
+│       use_simple_ce_loss: false                                               
+│       guidance:                                                               
+│         cond_dropout: 0.0                                                     
+│                                                                               
+├── eval
+│   └── checkpoint_path: ''                                                     
+│       disable_ema: false                                                      
+│       generate_samples: true                                                  
+│       generated_samples_path: ''                                              
+│       max_samples: 50000                                                      
+│                                                                               
+├── discriminator
+│   └── save_dir: ''                                                            
+│       checkpoint_path: ''                                                     
+│       num_steps: 50000                                                        
+│       batch_size: 16                                                          
+│       lr: 0.0003                                                              
+│       log_every: 100                                                          
+│       save_every: 5000                                                        
+│       steps_per_traj: 0                                                       
+│       epsilon: 0.05                                                           
+│                                                                               
+├── optim
+│   └── weight_decay: 0                                                         
+│       lr: 0.0003                                                              
+│       beta1: 0.9                                                              
+│       beta2: 0.999                                                            
+│       eps: 1.0e-08                                                            
+│                                                                               
+├── trainer
+│   └── _target_: lightning.Trainer                                             
+│       accelerator: cuda                                                       
+│       num_nodes: 1                                                            
+│       devices: 1                                                              
+│       accumulate_grad_batches: 1                                              
+│       gradient_clip_val: 1.0                                                  
+│       precision: bf16                                                         
+│       num_sanity_val_steps: 2                                                 
+│       max_steps: 25000                                                        
+│       log_every_n_steps: 10                                                   
+│       limit_train_batches: 1.0                                                
+│       limit_val_batches: 1.0                                                  
+│       val_check_interval: 1.0                                                 
+│                                                                               
+├── wandb
+│   └── project: discrete-diffusion-guidance                                    
+│       notes: Guided Discrete Diffusion                                        
+│       group: train_classifier                                                 
+│       job_type: training                                                      
+│       name: qm9-sa-classifier_le3.0                                           
+│       id: qm9-sa-classifier_le3.0_1                                           
+│       tags:                                                                   
+│       - loglinear                                                             
+│       - qm9                                                                   
+│       - qm9                                                                   
+│                                                                               
+├── checkpointing
+│   └── save_dir: /local/scratch/zhiheng/guidance/outputs/qm9/classifier/sa_scor
+│       resume_from_ckpt: true                                                  
+│       resume_ckpt_path: /local/scratch/zhiheng/guidance/outputs/qm9/classifier
+│                                                                               
+├── callbacks
+│   └── checkpoint_every_n_steps:                                               
+│         _target_: lightning.pytorch.callbacks.ModelCheckpoint                 
+│         save_top_k: -1                                                        
+│         save_last: true                                                       
+│         dirpath: /local/scratch/zhiheng/guidance/outputs/qm9/classifier/sa_sco
+│         verbose: true                                                         
+│         auto_insert_metric_name: false                                        
+│         every_n_train_steps: 5000                                             
+│       checkpoint_monitor:                                                     
+│         _target_: lightning.pytorch.callbacks.ModelCheckpoint                 
+│         monitor: val/cross_entropy                                            
+│         mode: min                                                             
+│         save_top_k: 1                                                         
+│         save_last: false                                                      
+│         dirpath: /local/scratch/zhiheng/guidance/outputs/qm9/classifier/sa_sco
+│         filename: best                                                        
+│         auto_insert_metric_name: false                                        
+│         verbose: true                                                         
+│       learning_rate_monitor:                                                  
+│         _target_: lightning.pytorch.callbacks.LearningRateMonitor             
+│         logging_interval: step                                                
+│                                                                               
+├── data
+│   └── train: qm9                                                              
+│       valid: qm9                                                              
+│       tokenizer_name_or_path: yairschiff/qm9-tokenizer                        
+│       cache_dir: /local/scratch/zhiheng/guidance/.data_cache                  
+│       wrap: false                                                             
+│       streaming: false                                                        
+│       override_cache: false                                                   
+│       add_special_tokens: true                                                
+│       label_col: sa_score                                                     
+│       label_col_pctile: null                                                  
+│       num_classes: 2                                                          
+│       label_col_value_threshold: 3.0                                          
+│                                                                               
+├── model
+│   └── name: small                                                             
+│       type: ddit                                                              
+│       hidden_size: 768                                                        
+│       cond_dim: 128                                                           
+│       length: 32                                                              
+│       n_blocks: 12                                                            
+│       n_heads: 12                                                             
+│       scale_by_sigma: true                                                    
+│       dropout: 0.1                                                            
+│       tie_word_embeddings: false                                              
+│                                                                               
+├── strategy
+│   └── _target_: lightning.pytorch.strategies.DDPStrategy                      
+│       find_unused_parameters: false                                           
+│                                                                               
+├── noise
+│   └── type: loglinear                                                         
+│       sigma_min: 0.0001                                                       
+│       sigma_max: 20                                                           
+│                                                                               
+├── lr_scheduler
+│   └── _target_: utils.CosineDecayWarmupLRScheduler                            
+│       t_in_epochs: false                                                      
+│       t_initial: 24000                                                        
+│       warmup_prefix: true                                                     
+│       warmup_lr_init: 1.0e-06                                                 
+│       warmup_t: 1000                                                          
+│       lr_min: 3.0e-06                                                         
+│                                                                               
+└── classifier_model
+    └── name: tiny                                                              
+        type: ddit                                                              
+        hidden_size: 512                                                        
+        cond_dim: 128                                                           
+        length: 32                                                              
+        n_blocks: 8                                                             
+        n_heads: 8                                                              
+        scale_by_sigma: true                                                    
+        dropout: 0.1                                                            
+        num_classes: 2                                                          
+        pooling: mean                                                           
+                                                                                
+/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+[2026-05-22 14:50:45,642][__main__][INFO] - Starting Training.
+[2026-05-22 14:50:46,715][dataloader][INFO] - Generating new data at: /local/scratch/zhiheng/guidance/.data_cache/qm9_train_bs32_unwrapped_label-sa_score_value-le-3.0.dat
+Tokenizing (num_proc=255):   0%|          | 0/127190 [00:00<?, ? examples/s]Tokenizing (num_proc=255):   2%|▏         | 2495/127190 [00:00<00:05, 22884.46 examples/s]Tokenizing (num_proc=255):  11%|█         | 13473/127190 [00:00<00:01, 68271.35 examples/s]Tokenizing (num_proc=255):  19%|█▉        | 24451/127190 [00:00<00:01, 85589.31 examples/s]Tokenizing (num_proc=255):  29%|██▊       | 36427/127190 [00:00<00:00, 96675.64 examples/s]Tokenizing (num_proc=255):  37%|███▋      | 47405/127190 [00:00<00:00, 101072.58 examples/s]Tokenizing (num_proc=255):  46%|████▌     | 58383/127190 [00:00<00:00, 101492.62 examples/s]Tokenizing (num_proc=255):  54%|█████▍    | 68862/127190 [00:00<00:00, 99678.93 examples/s] Tokenizing (num_proc=255):  62%|██████▏   | 79341/127190 [00:00<00:00, 91568.51 examples/s]Tokenizing (num_proc=255):  70%|██████▉   | 88822/127190 [00:00<00:00, 88292.12 examples/s]Tokenizing (num_proc=255):  78%|███████▊  | 98802/127190 [00:01<00:00, 91112.26 examples/s]Tokenizing (num_proc=255):  89%|████████▉ | 113744/127190 [00:01<00:00, 107136.68 examples/s]Tokenizing (num_proc=255): 100%|██████████| 127190/127190 [00:01<00:00, 95924.58 examples/s] 
+Saving the dataset (0/1 shards):   0%|          | 0/127190 [00:00<?, ? examples/s]Saving the dataset (1/1 shards): 100%|██████████| 127190/127190 [00:00<00:00, 2019837.90 examples/s]Saving the dataset (1/1 shards): 100%|██████████| 127190/127190 [00:00<00:00, 2007652.89 examples/s]
+[2026-05-22 14:50:51,305][dataloader][INFO] - Generating new data at: /local/scratch/zhiheng/guidance/.data_cache/qm9_test_bs32_unwrapped_label-sa_score_value-le-3.0.dat
+Tokenizing (num_proc=255):   0%|          | 0/6695 [00:00<?, ? examples/s]Tokenizing (num_proc=255):   5%|▍         | 324/6695 [00:00<00:02, 3081.46 examples/s]Tokenizing (num_proc=255):  13%|█▎        | 891/6695 [00:00<00:01, 4534.86 examples/s]Tokenizing (num_proc=255):  21%|██        | 1404/6695 [00:00<00:01, 4601.23 examples/s]Tokenizing (num_proc=255):  29%|██▊       | 1911/6695 [00:00<00:01, 4737.24 examples/s]Tokenizing (num_proc=255):  36%|███▌      | 2405/6695 [00:00<00:00, 4577.35 examples/s]Tokenizing (num_proc=255):  43%|████▎     | 2899/6695 [00:00<00:00, 4540.05 examples/s]Tokenizing (num_proc=255):  51%|█████     | 3393/6695 [00:00<00:00, 4581.36 examples/s]Tokenizing (num_proc=255):  59%|█████▉    | 3965/6695 [00:00<00:00, 4869.86 examples/s]Tokenizing (num_proc=255):  68%|██████▊   | 4537/6695 [00:00<00:00, 5041.24 examples/s]Tokenizing (num_proc=255):  76%|███████▌  | 5057/6695 [00:01<00:00, 4866.67 examples/s]Tokenizing (num_proc=255):  83%|████████▎ | 5551/6695 [00:01<00:00, 4804.59 examples/s]Tokenizing (num_proc=255):  90%|█████████ | 6045/6695 [00:01<00:00, 4774.73 examples/s]Tokenizing (num_proc=255):  98%|█████████▊| 6539/6695 [00:01<00:00, 4725.45 examples/s]Tokenizing (num_proc=255): 100%|██████████| 6695/6695 [00:01<00:00, 4407.52 examples/s]
+Saving the dataset (0/1 shards):   0%|          | 0/6695 [00:00<?, ? examples/s]Saving the dataset (1/1 shards): 100%|██████████| 6695/6695 [00:00<00:00, 232276.75 examples/s]Saving the dataset (1/1 shards): 100%|██████████| 6695/6695 [00:00<00:00, 230539.51 examples/s]
+Printing train dataloader batch.
+Batch input_ids.shape torch.Size([2048, 32])
+First 64 tokens: <bos>CC1OC1C=O<eos><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad>
+ids: tensor([ 0, 20, 20, 14, 23, 20, 14, 20, 19, 23,  1,  3,  3,  3,  3,  3,  3,  3,
+         3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3])
+Last 64 tokens: <bos>CC1OC1C=O<eos><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad>
+ids: tensor([ 0, 20, 20, 14, 23, 20, 14, 20, 19, 23,  1,  3,  3,  3,  3,  3,  3,  3,
+         3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3])
+Printing valid dataloader batch.
+Batch input_ids.shape torch.Size([4096, 32])
+First 64 tokens: <bos>COC(C)C(=O)C#N<eos><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad>
+ids: tensor([ 0, 20, 23, 20, 11, 20, 12, 20, 11, 19, 23, 12, 20, 10, 22,  1,  3,  3,
+         3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3])
+Last 64 tokens: <bos>COC(C)C(=O)C#N<eos><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad><pad>
+ids: tensor([ 0, 20, 23, 20, 11, 20, 12, 20, 11, 19, 23, 12, 20, 10, 22,  1,  3,  3,
+         3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3])
+/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/fabric/connector.py:563: `precision=bf16` is supported for historical reasons but its usage is discouraged. Please set your precision to bf16-mixed instead!
+Using bfloat16 Automatic Mixed Precision (AMP)
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+`Trainer(limit_train_batches=1.0)` was configured so 100% of the batches per epoch will be used..
+`Trainer(limit_val_batches=1.0)` was configured so 100% of the batches will be used..
+`Trainer(val_check_interval=1.0)` was configured so validation will run at the end of the training epoch..
+You are using a CUDA device ('NVIDIA H200 NVL') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+[rank: 0] Seed set to 1
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/1
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 1 processes
+----------------------------------------------------------------------------------------------------
+
+/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/wandb/apis/public.py:3046: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import parse_version
+wandb: WARNING `resume` will be ignored since W&B syncing is set to `offline`. Starting a new run with run id qm9-sa-classifier_le3.0_1.
+wandb: Tracking run with wandb version 0.13.5
+wandb: W&B syncing is set to `offline` in this directory.  
+wandb: Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+
+  | Name             | Type             | Params
+------------------------------------------------------
+0 | classifier_model | DITClassifier    | 28.4 M
+1 | train_metrics    | MetricCollection | 0     
+2 | valid_metrics    | MetricCollection | 0     
+3 | noise            | LogLinearNoise   | 0     
+------------------------------------------------------
+28.4 M    Trainable params
+0         Non-trainable params
+28.4 M    Total params
+113.743   Total estimated model params size (MB)
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]Sanity Checking:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0:  50%|█████     | 1/2 [00:00<00:00,  1.38it/s]Sanity Checking DataLoader 0: 100%|██████████| 2/2 [00:00<00:00,  2.61it/s]                                                                           Training: |          | 0/? [00:00<?, ?it/s]Training:   0%|          | 0/63 [00:00<?, ?it/s]Epoch 0:   0%|          | 0/63 [00:00<?, ?it/s] Epoch 0:   2%|▏         | 1/63 [00:00<00:26,  2.31it/s]Epoch 0:   2%|▏         | 1/63 [00:00<00:26,  2.30it/s, v_num=.0_1, trainer/loss=0.667, lr=1e-6]Epoch 0:   3%|▎         | 2/63 [00:00<00:14,  4.14it/s, v_num=.0_1, trainer/loss=0.667, lr=1e-6]Epoch 0:   3%|▎         | 2/63 [00:00<00:16,  3.63it/s, v_num=.0_1, trainer/loss=0.667, lr=1.3e-6]Epoch 0:   5%|▍         | 3/63 [00:00<00:12,  5.00it/s, v_num=.0_1, trainer/loss=0.667, lr=1.3e-6]Epoch 0:   5%|▍         | 3/63 [00:00<00:13,  4.49it/s, v_num=.0_1, trainer/loss=0.667, lr=1.6e-6]Epoch 0:   6%|▋         | 4/63 [00:00<00:10,  5.57it/s, v_num=.0_1, trainer/loss=0.667, lr=1.6e-6]Epoch 0:   6%|▋         | 4/63 [00:00<00:11,  5.09it/s, v_num=.0_1, trainer/loss=0.667, lr=1.9e-6]Epoch 0:   8%|▊         | 5/63 [00:00<00:09,  6.01it/s, v_num=.0_1, trainer/loss=0.667, lr=1.9e-6]Epoch 0:   8%|▊         | 5/63 [00:00<00:10,  5.56it/s, v_num=.0_1, trainer/loss=0.667, lr=2.2e-6]Epoch 0:  10%|▉         | 6/63 [00:01<00:11,  4.76it/s, v_num=.0_1, trainer/loss=0.667, lr=2.2e-6]Epoch 0:  10%|▉         | 6/63 [00:01<00:12,  4.52it/s, v_num=.0_1, trainer/loss=0.666, lr=2.49e-6]Epoch 0:  11%|█         | 7/63 [00:01<00:10,  5.09it/s, v_num=.0_1, trainer/loss=0.666, lr=2.49e-6]Epoch 0:  11%|█         | 7/63 [00:01<00:11,  4.85it/s, v_num=.0_1, trainer/loss=0.666, lr=2.79e-6]Epoch 0:  13%|█▎        | 8/63 [00:01<00:10,  5.36it/s, v_num=.0_1, trainer/loss=0.666, lr=2.79e-6]Epoch 0:  13%|█▎        | 8/63 [00:01<00:10,  5.13it/s, v_num=.0_1, trainer/loss=0.665, lr=3.09e-6]Epoch 0:  14%|█▍        | 9/63 [00:01<00:09,  5.59it/s, v_num=.0_1, trainer/loss=0.665, lr=3.09e-6]Epoch 0:  14%|█▍        | 9/63 [00:01<00:10,  5.37it/s, v_num=.0_1, trainer/loss=0.666, lr=3.39e-6]Epoch 0:  16%|█▌        | 10/63 [00:01<00:09,  5.80it/s, v_num=.0_1, trainer/loss=0.666, lr=3.39e-6]Epoch 0:  16%|█▌        | 10/63 [00:01<00:09,  5.58it/s, v_num=.0_1, trainer/loss=0.666, lr=3.69e-6]Epoch 0:  17%|█▋        | 11/63 [00:01<00:08,  5.99it/s, v_num=.0_1, trainer/loss=0.666, lr=3.69e-6]Epoch 0:  17%|█▋        | 11/63 [00:01<00:09,  5.77it/s, v_num=.0_1, trainer/loss=0.665, lr=3.99e-6]Epoch 0:  19%|█▉        | 12/63 [00:01<00:08,  6.14it/s, v_num=.0_1, trainer/loss=0.665, lr=3.99e-6]Epoch 0:  19%|█▉        | 12/63 [00:02<00:08,  5.94it/s, v_num=.0_1, trainer/loss=0.665, lr=4.29e-6]Epoch 0:  21%|██        | 13/63 [00:02<00:07,  6.29it/s, v_num=.0_1, trainer/loss=0.665, lr=4.29e-6]Epoch 0:  21%|██        | 13/63 [00:02<00:08,  6.08it/s, v_num=.0_1, trainer/loss=0.664, lr=4.59e-6]Epoch 0:  22%|██▏       | 14/63 [00:02<00:07,  6.41it/s, v_num=.0_1, trainer/loss=0.664, lr=4.59e-6]Epoch 0:  22%|██▏       | 14/63 [00:02<00:07,  6.22it/s, v_num=.0_1, trainer/loss=0.663, lr=4.89e-6]Epoch 0:  24%|██▍       | 15/63 [00:02<00:07,  6.52it/s, v_num=.0_1, trainer/loss=0.663, lr=4.89e-6]Epoch 0:  24%|██▍       | 15/63 [00:02<00:07,  6.34it/s, v_num=.0_1, trainer/loss=0.663, lr=5.19e-6]Epoch 0:  25%|██▌       | 16/63 [00:02<00:07,  6.62it/s, v_num=.0_1, trainer/loss=0.663, lr=5.19e-6]Epoch 0:  25%|██▌       | 16/63 [00:02<00:07,  6.44it/s, v_num=.0_1, trainer/loss=0.663, lr=5.49e-6]Epoch 0:  27%|██▋       | 17/63 [00:02<00:06,  6.72it/s, v_num=.0_1, trainer/loss=0.663, lr=5.49e-6]Epoch 0:  27%|██▋       | 17/63 [00:02<00:07,  6.54it/s, v_num=.0_1, trainer/loss=0.662, lr=5.78e-6]Epoch 0:  29%|██▊       | 18/63 [00:02<00:06,  6.80it/s, v_num=.0_1, trainer/loss=0.662, lr=5.78e-6]Epoch 0:  29%|██▊       | 18/63 [00:02<00:06,  6.63it/s, v_num=.0_1, trainer/loss=0.660, lr=6.08e-6]Epoch 0:  30%|███       | 19/63 [00:02<00:06,  6.87it/s, v_num=.0_1, trainer/loss=0.660, lr=6.08e-6]Epoch 0:  30%|███       | 19/63 [00:02<00:06,  6.71it/s, v_num=.0_1, trainer/loss=0.659, lr=6.38e-6]Epoch 0:  32%|███▏      | 20/63 [00:02<00:06,  6.94it/s, v_num=.0_1, trainer/loss=0.659, lr=6.38e-6]Epoch 0:  32%|███▏      | 20/63 [00:02<00:06,  6.78it/s, v_num=.0_1, trainer/loss=0.659, lr=6.68e-6]Epoch 0:  33%|███▎      | 21/63 [00:02<00:05,  7.01it/s, v_num=.0_1, trainer/loss=0.659, lr=6.68e-6]Epoch 0:  33%|███▎      | 21/63 [00:03<00:06,  6.85it/s, v_num=.0_1, trainer/loss=0.657, lr=6.98e-6]Epoch 0:  35%|███▍      | 22/63 [00:03<00:05,  7.07it/s, v_num=.0_1, trainer/loss=0.657, lr=6.98e-6]Epoch 0:  35%|███▍      | 22/63 [00:03<00:05,  6.92it/s, v_num=.0_1, trainer/loss=0.656, lr=7.28e-6]Epoch 0:  37%|███▋      | 23/63 [00:03<00:05,  7.13it/s, v_num=.0_1, trainer/loss=0.656, lr=7.28e-6]Epoch 0:  37%|███▋      | 23/63 [00:03<00:05,  6.98it/s, v_num=.0_1, trainer/loss=0.656, lr=7.58e-6]Epoch 0:  38%|███▊      | 24/63 [00:03<00:05,  7.18it/s, v_num=.0_1, trainer/loss=0.656, lr=7.58e-6]Epoch 0:  38%|███▊      | 24/63 [00:03<00:05,  7.03it/s, v_num=.0_1, trainer/loss=0.654, lr=7.88e-6]Epoch 0:  40%|███▉      | 25/63 [00:03<00:05,  7.23it/s, v_num=.0_1, trainer/loss=0.654, lr=7.88e-6]Epoch 0:  40%|███▉      | 25/63 [00:03<00:05,  7.09it/s, v_num=.0_1, trainer/loss=0.653, lr=8.18e-6]Epoch 0:  41%|████▏     | 26/63 [00:03<00:05,  7.27it/s, v_num=.0_1, trainer/loss=0.653, lr=8.18e-6]Epoch 0:  41%|████▏     | 26/63 [00:03<00:05,  7.13it/s, v_num=.0_1, trainer/loss=0.652, lr=8.47e-6]Epoch 0:  43%|████▎     | 27/63 [00:03<00:04,  7.31it/s, v_num=.0_1, trainer/loss=0.652, lr=8.47e-6]Epoch 0:  43%|████▎     | 27/63 [00:03<00:05,  7.18it/s, v_num=.0_1, trainer/loss=0.649, lr=8.77e-6]Epoch 0:  44%|████▍     | 28/63 [00:03<00:04,  7.35it/s, v_num=.0_1, trainer/loss=0.649, lr=8.77e-6]Epoch 0:  44%|████▍     | 28/63 [00:03<00:04,  7.22it/s, v_num=.0_1, trainer/loss=0.648, lr=9.07e-6]Epoch 0:  46%|████▌     | 29/63 [00:03<00:04,  7.38it/s, v_num=.0_1, trainer/loss=0.648, lr=9.07e-6]Epoch 0:  46%|████▌     | 29/63 [00:03<00:04,  7.26it/s, v_num=.0_1, trainer/loss=0.645, lr=9.37e-6]Epoch 0:  48%|████▊     | 30/63 [00:04<00:04,  7.41it/s, v_num=.0_1, trainer/loss=0.645, lr=9.37e-6]Epoch 0:  48%|████▊     | 30/63 [00:04<00:04,  7.29it/s, v_num=.0_1, trainer/loss=0.643, lr=9.67e-6]Epoch 0:  49%|████▉     | 31/63 [00:04<00:04,  7.45it/s, v_num=.0_1, trainer/loss=0.643, lr=9.67e-6]Epoch 0:  49%|████▉     | 31/63 [00:04<00:04,  7.33it/s, v_num=.0_1, trainer/loss=0.641, lr=9.97e-6]Epoch 0:  51%|█████     | 32/63 [00:04<00:04,  7.47it/s, v_num=.0_1, trainer/loss=0.641, lr=9.97e-6]Epoch 0:  51%|█████     | 32/63 [00:04<00:04,  7.36it/s, v_num=.0_1, trainer/loss=0.637, lr=1.03e-5]Epoch 0:  52%|█████▏    | 33/63 [00:04<00:03,  7.50it/s, v_num=.0_1, trainer/loss=0.637, lr=1.03e-5]Epoch 0:  52%|█████▏    | 33/63 [00:04<00:04,  7.39it/s, v_num=.0_1, trainer/loss=0.635, lr=1.06e-5]Epoch 0:  54%|█████▍    | 34/63 [00:04<00:03,  7.53it/s, v_num=.0_1, trainer/loss=0.635, lr=1.06e-5]Epoch 0:  54%|█████▍    | 34/63 [00:04<00:03,  7.42it/s, v_num=.0_1, trainer/loss=0.631, lr=1.09e-5]Epoch 0:  56%|█████▌    | 35/63 [00:04<00:03,  7.55it/s, v_num=.0_1, trainer/loss=0.631, lr=1.09e-5]Epoch 0:  56%|█████▌    | 35/63 [00:04<00:03,  7.45it/s, v_num=.0_1, trainer/loss=0.627, lr=1.12e-5]Epoch 0:  57%|█████▋    | 36/63 [00:04<00:03,  7.58it/s, v_num=.0_1, trainer/loss=0.627, lr=1.12e-5]Epoch 0:  57%|█████▋    | 36/63 [00:04<00:03,  7.47it/s, v_num=.0_1, trainer/loss=0.624, lr=1.15e-5]Epoch 0:  59%|█████▊    | 37/63 [00:04<00:03,  7.60it/s, v_num=.0_1, trainer/loss=0.624, lr=1.15e-5]Epoch 0:  59%|█████▊    | 37/63 [00:04<00:03,  7.50it/s, v_num=.0_1, trainer/loss=0.620, lr=1.18e-5]Epoch 0:  60%|██████    | 38/63 [00:04<00:03,  7.62it/s, v_num=.0_1, trainer/loss=0.620, lr=1.18e-5]Epoch 0:  60%|██████    | 38/63 [00:05<00:03,  7.52it/s, v_num=.0_1, trainer/loss=0.618, lr=1.21e-5]Epoch 0:  62%|██████▏   | 39/63 [00:05<00:03,  7.65it/s, v_num=.0_1, trainer/loss=0.618, lr=1.21e-5]Epoch 0:  62%|██████▏   | 39/63 [00:05<00:03,  7.55it/s, v_num=.0_1, trainer/loss=0.610, lr=1.24e-5]Epoch 0:  63%|██████▎   | 40/63 [00:05<00:03,  7.67it/s, v_num=.0_1, trainer/loss=0.610, lr=1.24e-5]Epoch 0:  63%|██████▎   | 40/63 [00:05<00:03,  7.57it/s, v_num=.0_1, trainer/loss=0.606, lr=1.27e-5]Epoch 0:  65%|██████▌   | 41/63 [00:05<00:02,  7.68it/s, v_num=.0_1, trainer/loss=0.606, lr=1.27e-5]Epoch 0:  65%|██████▌   | 41/63 [00:05<00:02,  7.59it/s, v_num=.0_1, trainer/loss=0.603, lr=1.3e-5] Epoch 0:  67%|██████▋   | 42/63 [00:05<00:02,  7.70it/s, v_num=.0_1, trainer/loss=0.603, lr=1.3e-5]Epoch 0:  67%|██████▋   | 42/63 [00:05<00:02,  7.61it/s, v_num=.0_1, trainer/loss=0.595, lr=1.33e-5]Epoch 0:  68%|██████▊   | 43/63 [00:05<00:02,  7.72it/s, v_num=.0_1, trainer/loss=0.595, lr=1.33e-5]Epoch 0:  68%|██████▊   | 43/63 [00:05<00:02,  7.63it/s, v_num=.0_1, trainer/loss=0.586, lr=1.36e-5]Epoch 0:  70%|██████▉   | 44/63 [00:05<00:02,  7.74it/s, v_num=.0_1, trainer/loss=0.586, lr=1.36e-5]Epoch 0:  70%|██████▉   | 44/63 [00:05<00:02,  7.65it/s, v_num=.0_1, trainer/loss=0.579, lr=1.39e-5]Epoch 0:  71%|███████▏  | 45/63 [00:05<00:02,  7.76it/s, v_num=.0_1, trainer/loss=0.579, lr=1.39e-5]Epoch 0:  71%|███████▏  | 45/63 [00:05<00:02,  7.67it/s, v_num=.0_1, trainer/loss=0.577, lr=1.42e-5]Epoch 0:  73%|███████▎  | 46/63 [00:05<00:02,  7.77it/s, v_num=.0_1, trainer/loss=0.577, lr=1.42e-5]Epoch 0:  73%|███████▎  | 46/63 [00:05<00:02,  7.69it/s, v_num=.0_1, trainer/loss=0.566, lr=1.45e-5]Epoch 0:  75%|███████▍  | 47/63 [00:06<00:02,  7.79it/s, v_num=.0_1, trainer/loss=0.566, lr=1.45e-5]Epoch 0:  75%|███████▍  | 47/63 [00:06<00:02,  7.70it/s, v_num=.0_1, trainer/loss=0.560, lr=1.48e-5]Epoch 0:  76%|███████▌  | 48/63 [00:06<00:01,  7.80it/s, v_num=.0_1, trainer/loss=0.560, lr=1.48e-5]Epoch 0:  76%|███████▌  | 48/63 [00:06<00:01,  7.72it/s, v_num=.0_1, trainer/loss=0.547, lr=1.51e-5]Epoch 0:  78%|███████▊  | 49/63 [00:06<00:01,  7.82it/s, v_num=.0_1, trainer/loss=0.547, lr=1.51e-5]Epoch 0:  78%|███████▊  | 49/63 [00:06<00:01,  7.73it/s, v_num=.0_1, trainer/loss=0.539, lr=1.54e-5]Epoch 0:  79%|███████▉  | 50/63 [00:06<00:01,  7.83it/s, v_num=.0_1, trainer/loss=0.539, lr=1.54e-5]Epoch 0:  79%|███████▉  | 50/63 [00:06<00:01,  7.75it/s, v_num=.0_1, trainer/loss=0.527, lr=1.57e-5]Epoch 0:  81%|████████  | 51/63 [00:06<00:01,  7.84it/s, v_num=.0_1, trainer/loss=0.527, lr=1.57e-5]Epoch 0:  81%|████████  | 51/63 [00:06<00:01,  7.76it/s, v_num=.0_1, trainer/loss=0.520, lr=1.59e-5]Epoch 0:  83%|████████▎ | 52/63 [00:06<00:01,  7.86it/s, v_num=.0_1, trainer/loss=0.520, lr=1.59e-5]Epoch 0:  83%|████████▎ | 52/63 [00:06<00:01,  7.78it/s, v_num=.0_1, trainer/loss=0.511, lr=1.62e-5]Epoch 0:  84%|████████▍ | 53/63 [00:06<00:01,  7.87it/s, v_num=.0_1, trainer/loss=0.511, lr=1.62e-5]Epoch 0:  84%|████████▍ | 53/63 [00:06<00:01,  7.79it/s, v_num=.0_1, trainer/loss=0.491, lr=1.65e-5]Epoch 0:  86%|████████▌ | 54/63 [00:06<00:01,  7.88it/s, v_num=.0_1, trainer/loss=0.491, lr=1.65e-5]Epoch 0:  86%|████████▌ | 54/63 [00:06<00:01,  7.80it/s, v_num=.0_1, trainer/loss=0.484, lr=1.68e-5]Epoch 0:  87%|████████▋ | 55/63 [00:06<00:01,  7.89it/s, v_num=.0_1, trainer/loss=0.484, lr=1.68e-5]Epoch 0:  87%|████████▋ | 55/63 [00:07<00:01,  7.82it/s, v_num=.0_1, trainer/loss=0.464, lr=1.71e-5]Epoch 0:  89%|████████▉ | 56/63 [00:07<00:00,  7.91it/s, v_num=.0_1, trainer/loss=0.464, lr=1.71e-5]Epoch 0:  89%|████████▉ | 56/63 [00:07<00:00,  7.83it/s, v_num=.0_1, trainer/loss=0.453, lr=1.74e-5]Epoch 0:  90%|█████████ | 57/63 [00:07<00:00,  7.92it/s, v_num=.0_1, trainer/loss=0.453, lr=1.74e-5]Epoch 0:  90%|█████████ | 57/63 [00:07<00:00,  7.84it/s, v_num=.0_1, trainer/loss=0.448, lr=1.77e-5]Epoch 0:  92%|█████████▏| 58/63 [00:07<00:00,  7.93it/s, v_num=.0_1, trainer/loss=0.448, lr=1.77e-5]Epoch 0:  92%|█████████▏| 58/63 [00:07<00:00,  7.86it/s, v_num=.0_1, trainer/loss=0.419, lr=1.8e-5] Epoch 0:  94%|█████████▎| 59/63 [00:07<00:00,  7.94it/s, v_num=.0_1, trainer/loss=0.419, lr=1.8e-5]Epoch 0:  94%|█████████▎| 59/63 [00:07<00:00,  7.87it/s, v_num=.0_1, trainer/loss=0.400, lr=1.83e-5]Epoch 0:  95%|█████████▌| 60/63 [00:07<00:00,  7.95it/s, v_num=.0_1, trainer/loss=0.400, lr=1.83e-5]Epoch 0:  95%|█████████▌| 60/63 [00:07<00:00,  7.88it/s, v_num=.0_1, trainer/loss=0.394, lr=1.86e-5]Epoch 0:  97%|█████████▋| 61/63 [00:07<00:00,  7.96it/s, v_num=.0_1, trainer/loss=0.394, lr=1.86e-5]Epoch 0:  97%|█████████▋| 61/63 [00:07<00:00,  7.89it/s, v_num=.0_1, trainer/loss=0.383, lr=1.89e-5]Epoch 0:  98%|█████████▊| 62/63 [00:07<00:00,  7.97it/s, v_num=.0_1, trainer/loss=0.383, lr=1.89e-5]Epoch 0:  98%|█████████▊| 62/63 [00:07<00:00,  7.90it/s, v_num=.0_1, trainer/loss=0.377, lr=1.92e-5]Epoch 0: 100%|██████████| 63/63 [00:07<00:00,  8.00it/s, v_num=.0_1, trainer/loss=0.377, lr=1.92e-5]Epoch 0: 100%|██████████| 63/63 [00:07<00:00,  8.00it/s, v_num=.0_1, trainer/loss=0.351, lr=1.95e-5]terminate called after throwing an instance of 'c10::Error'
+  what():  CUDA error: initialization error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at ../c10/cuda/CUDAException.cpp:44 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x7faf010f4d87 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::string const&) + 0x64 (0x7faf010a575f in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x118 (0x7faf011c58a8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x1d229 (0x7faf01190229 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #4: <unknown function> + 0x1f744 (0x7faf01192744 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #5: <unknown function> + 0x1fb6d (0x7faf01192b6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #6: <unknown function> + 0x540020 (0x7faf000f0020 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #7: <unknown function> + 0x649bf (0x7faf010d99bf in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #8: c10::TensorImpl::~TensorImpl() + 0x21b (0x7faf010d2c8b in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #9: c10::TensorImpl::~TensorImpl() + 0x9 (0x7faf010d2e39 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #10: <unknown function> + 0x801ff8 (0x7faf003b1ff8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #11: THPVariable_subclass_dealloc(_object*) + 0x2f6 (0x7faf003b2376 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #12: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4daa2c]
+frame #13: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f0030]
+frame #14: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #15: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #16: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #17: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #18: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #19: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #20: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #21: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #22: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #23: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #24: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #25: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #26: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #27: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #28: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #29: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #30: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #31: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #32: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x502169]
+frame #33: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4df06f]
+frame #34: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4dcff0]
+frame #35: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x590d9c]
+frame #36: _PyObject_GC_NewVar + 0x23d (0x4d8a6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #37: PyTuple_New + 0x16d (0x4d87ad in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #38: _PyEval_EvalFrameDefault + 0x1300 (0x4e8970 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #39: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50bc4c]
+frame #40: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x510d03]
+frame #41: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x552d32]
+frame #42: _PyEval_EvalFrameDefault + 0x3d3 (0x4e7a43 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #43: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #44: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #45: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #46: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x5051bd]
+frame #47: _PyEval_EvalFrameDefault + 0x1236 (0x4e88a6 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #48: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #49: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #50: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #51: _PyObject_FastCallDictTstate + 0xbe (0x4efc0e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #52: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+frame #53: _PyObject_MakeTpCall + 0x303 (0x4f0423 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #54: _PyEval_EvalFrameDefault + 0x4c73 (0x4ec2e3 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #55: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #56: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #57: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #58: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #59: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #60: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #61: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #62: _PyObject_FastCallDictTstate + 0x13e (0x4efc8e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #63: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+
+terminate called after throwing an instance of 'c10::Error'
+  what():  CUDA error: initialization error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at ../c10/cuda/CUDAException.cpp:44 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x7faf010f4d87 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::string const&) + 0x64 (0x7faf010a575f in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x118 (0x7faf011c58a8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x1d229 (0x7faf01190229 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #4: <unknown function> + 0x1f744 (0x7faf01192744 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #5: <unknown function> + 0x1fb6d (0x7faf01192b6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #6: <unknown function> + 0x540020 (0x7faf000f0020 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #7: <unknown function> + 0x649bf (0x7faf010d99bf in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #8: c10::TensorImpl::~TensorImpl() + 0x21b (0x7faf010d2c8b in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #9: c10::TensorImpl::~TensorImpl() + 0x9 (0x7faf010d2e39 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #10: <unknown function> + 0x801ff8 (0x7faf003b1ff8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #11: THPVariable_subclass_dealloc(_object*) + 0x2f6 (0x7faf003b2376 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #12: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4daa2c]
+frame #13: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f0030]
+frame #14: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #15: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #16: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #17: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #18: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #19: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #20: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #21: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #22: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #23: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #24: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #25: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #26: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #27: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #28: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #29: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #30: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #31: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #32: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x502169]
+frame #33: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4df06f]
+frame #34: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4dcff0]
+frame #35: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x590d9c]
+frame #36: _PyObject_GC_NewVar + 0x23d (0x4d8a6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #37: PyTuple_New + 0x16d (0x4d87ad in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #38: _PyEval_EvalFrameDefault + 0x1300 (0x4e8970 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #39: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50bc4c]
+frame #40: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x510d03]
+frame #41: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x552d32]
+frame #42: _PyEval_EvalFrameDefault + 0x3d3 (0x4e7a43 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #43: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #44: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #45: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #46: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x5051bd]
+frame #47: _PyEval_EvalFrameDefault + 0x1236 (0x4e88a6 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #48: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #49: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #50: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #51: _PyObject_FastCallDictTstate + 0xbe (0x4efc0e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #52: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+frame #53: _PyObject_MakeTpCall + 0x303 (0x4f0423 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #54: _PyEval_EvalFrameDefault + 0x4c73 (0x4ec2e3 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #55: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #56: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #57: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #58: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #59: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #60: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #61: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #62: _PyObject_FastCallDictTstate + 0x13e (0x4efc8e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #63: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+
+terminate called after throwing an instance of 'c10::Error'
+  what():  CUDA error: initialization error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at ../c10/cuda/CUDAException.cpp:44 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x7faf010f4d87 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::string const&) + 0x64 (0x7faf010a575f in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x118 (0x7faf011c58a8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x1d229 (0x7faf01190229 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #4: <unknown function> + 0x1f744 (0x7faf01192744 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #5: <unknown function> + 0x1fb6d (0x7faf01192b6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #6: <unknown function> + 0x540020 (0x7faf000f0020 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #7: <unknown function> + 0x649bf (0x7faf010d99bf in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #8: c10::TensorImpl::~TensorImpl() + 0x21b (0x7faf010d2c8b in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #9: c10::TensorImpl::~TensorImpl() + 0x9 (0x7faf010d2e39 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #10: <unknown function> + 0x801ff8 (0x7faf003b1ff8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #11: THPVariable_subclass_dealloc(_object*) + 0x2f6 (0x7faf003b2376 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #12: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4daa2c]
+frame #13: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f0030]
+frame #14: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #15: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #16: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #17: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #18: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #19: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #20: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #21: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #22: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #23: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #24: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #25: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #26: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #27: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #28: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #29: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #30: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #31: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #32: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x502169]
+frame #33: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4df06f]
+frame #34: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4dcff0]
+frame #35: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x590d9c]
+frame #36: _PyObject_GC_NewVar + 0x23d (0x4d8a6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #37: PyTuple_New + 0x16d (0x4d87ad in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #38: _PyEval_EvalFrameDefault + 0x1300 (0x4e8970 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #39: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50bc4c]
+frame #40: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x510d03]
+frame #41: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x552d32]
+frame #42: _PyEval_EvalFrameDefault + 0x3d3 (0x4e7a43 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #43: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #44: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #45: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #46: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x5051bd]
+frame #47: _PyEval_EvalFrameDefault + 0x1236 (0x4e88a6 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #48: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #49: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #50: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #51: _PyObject_FastCallDictTstate + 0xbe (0x4efc0e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #52: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+frame #53: _PyObject_MakeTpCall + 0x303 (0x4f0423 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #54: _PyEval_EvalFrameDefault + 0x4c73 (0x4ec2e3 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #55: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #56: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #57: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #58: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #59: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #60: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #61: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #62: _PyObject_FastCallDictTstate + 0x13e (0x4efc8e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #63: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+
+terminate called after throwing an instance of 'c10::Error'
+  what():  CUDA error: initialization error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at ../c10/cuda/CUDAException.cpp:44 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x7faf010f4d87 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::string const&) + 0x64 (0x7faf010a575f in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x118 (0x7faf011c58a8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x1d229 (0x7faf01190229 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #4: <unknown function> + 0x1f744 (0x7faf01192744 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #5: <unknown function> + 0x1fb6d (0x7faf01192b6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #6: <unknown function> + 0x540020 (0x7faf000f0020 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #7: <unknown function> + 0x649bf (0x7faf010d99bf in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #8: c10::TensorImpl::~TensorImpl() + 0x21b (0x7faf010d2c8b in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #9: c10::TensorImpl::~TensorImpl() + 0x9 (0x7faf010d2e39 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #10: <unknown function> + 0x801ff8 (0x7faf003b1ff8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #11: THPVariable_subclass_dealloc(_object*) + 0x2f6 (0x7faf003b2376 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #12: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4daa2c]
+frame #13: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f0030]
+frame #14: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #15: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #16: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #17: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #18: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #19: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #20: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #21: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #22: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #23: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #24: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #25: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #26: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #27: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #28: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #29: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #30: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #31: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #32: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x502169]
+frame #33: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4df06f]
+frame #34: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4dcff0]
+frame #35: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x590d9c]
+frame #36: _PyObject_GC_NewVar + 0x23d (0x4d8a6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #37: PyTuple_New + 0x16d (0x4d87ad in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #38: _PyEval_EvalFrameDefault + 0x1300 (0x4e8970 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #39: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50bc4c]
+frame #40: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x510d03]
+frame #41: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x552d32]
+frame #42: _PyEval_EvalFrameDefault + 0x3d3 (0x4e7a43 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #43: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #44: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #45: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #46: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x5051bd]
+frame #47: _PyEval_EvalFrameDefault + 0x1236 (0x4e88a6 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #48: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #49: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #50: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #51: _PyObject_FastCallDictTstate + 0xbe (0x4efc0e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #52: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+frame #53: _PyObject_MakeTpCall + 0x303 (0x4f0423 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #54: _PyEval_EvalFrameDefault + 0x4c73 (0x4ec2e3 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #55: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #56: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #57: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #58: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #59: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #60: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #61: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #62: _PyObject_FastCallDictTstate + 0x13e (0x4efc8e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #63: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+
+terminate called after throwing an instance of 'c10::Error'
+  what():  CUDA error: initialization error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at ../c10/cuda/CUDAException.cpp:44 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x7faf010f4d87 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::string const&) + 0x64 (0x7faf010a575f in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x118 (0x7faf011c58a8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x1d229 (0x7faf01190229 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #4: <unknown function> + 0x1f744 (0x7faf01192744 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #5: <unknown function> + 0x1fb6d (0x7faf01192b6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #6: <unknown function> + 0x540020 (0x7faf000f0020 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #7: <unknown function> + 0x649bf (0x7faf010d99bf in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #8: c10::TensorImpl::~TensorImpl() + 0x21b (0x7faf010d2c8b in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #9: c10::TensorImpl::~TensorImpl() + 0x9 (0x7faf010d2e39 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #10: <unknown function> + 0x801ff8 (0x7faf003b1ff8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #11: THPVariable_subclass_dealloc(_object*) + 0x2f6 (0x7faf003b2376 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #12: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4daa2c]
+frame #13: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f0030]
+frame #14: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #15: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #16: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #17: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #18: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #19: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #20: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #21: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #22: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #23: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #24: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #25: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #26: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #27: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #28: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #29: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #30: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #31: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #32: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x502169]
+frame #33: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4df06f]
+frame #34: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4dcff0]
+frame #35: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x590d9c]
+frame #36: _PyObject_GC_NewVar + 0x23d (0x4d8a6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #37: PyTuple_New + 0x16d (0x4d87ad in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #38: _PyEval_EvalFrameDefault + 0x1300 (0x4e8970 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #39: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50bc4c]
+frame #40: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x510d03]
+frame #41: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x552d32]
+frame #42: _PyEval_EvalFrameDefault + 0x3d3 (0x4e7a43 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #43: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #44: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #45: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #46: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x5051bd]
+frame #47: _PyEval_EvalFrameDefault + 0x1236 (0x4e88a6 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #48: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #49: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #50: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #51: _PyObject_FastCallDictTstate + 0xbe (0x4efc0e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #52: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+frame #53: _PyObject_MakeTpCall + 0x303 (0x4f0423 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #54: _PyEval_EvalFrameDefault + 0x4c73 (0x4ec2e3 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #55: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #56: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #57: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #58: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #59: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #60: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #61: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #62: _PyObject_FastCallDictTstate + 0x13e (0x4efc8e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #63: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+
+terminate called after throwing an instance of 'c10::Error'
+  what():  CUDA error: initialization error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at ../c10/cuda/CUDAException.cpp:44 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x7faf010f4d87 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::string const&) + 0x64 (0x7faf010a575f in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x118 (0x7faf011c58a8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x1d229 (0x7faf01190229 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #4: <unknown function> + 0x1f744 (0x7faf01192744 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #5: <unknown function> + 0x1fb6d (0x7faf01192b6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #6: <unknown function> + 0x540020 (0x7faf000f0020 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #7: <unknown function> + 0x649bf (0x7faf010d99bf in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #8: c10::TensorImpl::~TensorImpl() + 0x21b (0x7faf010d2c8b in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #9: c10::TensorImpl::~TensorImpl() + 0x9 (0x7faf010d2e39 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #10: <unknown function> + 0x801ff8 (0x7faf003b1ff8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #11: THPVariable_subclass_dealloc(_object*) + 0x2f6 (0x7faf003b2376 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #12: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4daa2c]
+frame #13: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f0030]
+frame #14: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #15: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #16: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #17: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #18: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #19: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #20: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #21: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #22: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #23: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #24: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #25: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #26: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #27: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #28: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #29: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #30: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #31: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #32: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x502169]
+frame #33: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4df06f]
+frame #34: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4dcff0]
+frame #35: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x590d9c]
+frame #36: _PyObject_GC_NewVar + 0x23d (0x4d8a6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #37: PyTuple_New + 0x16d (0x4d87ad in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #38: _PyEval_EvalFrameDefault + 0x1300 (0x4e8970 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #39: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50bc4c]
+frame #40: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x510d03]
+frame #41: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x552d32]
+frame #42: _PyEval_EvalFrameDefault + 0x3d3 (0x4e7a43 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #43: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #44: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #45: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #46: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x5051bd]
+frame #47: _PyEval_EvalFrameDefault + 0x1236 (0x4e88a6 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #48: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #49: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #50: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #51: _PyObject_FastCallDictTstate + 0xbe (0x4efc0e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #52: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+frame #53: _PyObject_MakeTpCall + 0x303 (0x4f0423 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #54: _PyEval_EvalFrameDefault + 0x4c73 (0x4ec2e3 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #55: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #56: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #57: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #58: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #59: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #60: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #61: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #62: _PyObject_FastCallDictTstate + 0x13e (0x4efc8e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #63: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+
+terminate called after throwing an instance of 'c10::Error'
+  what():  CUDA error: initialization error
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Exception raised from c10_cuda_check_implementation at ../c10/cuda/CUDAException.cpp:44 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x57 (0x7faf010f4d87 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #1: c10::detail::torchCheckFail(char const*, char const*, unsigned int, std::string const&) + 0x64 (0x7faf010a575f in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #2: c10::cuda::c10_cuda_check_implementation(int, char const*, char const*, int, bool) + 0x118 (0x7faf011c58a8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x1d229 (0x7faf01190229 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #4: <unknown function> + 0x1f744 (0x7faf01192744 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #5: <unknown function> + 0x1fb6d (0x7faf01192b6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10_cuda.so)
+frame #6: <unknown function> + 0x540020 (0x7faf000f0020 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #7: <unknown function> + 0x649bf (0x7faf010d99bf in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #8: c10::TensorImpl::~TensorImpl() + 0x21b (0x7faf010d2c8b in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #9: c10::TensorImpl::~TensorImpl() + 0x9 (0x7faf010d2e39 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libc10.so)
+frame #10: <unknown function> + 0x801ff8 (0x7faf003b1ff8 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #11: THPVariable_subclass_dealloc(_object*) + 0x2f6 (0x7faf003b2376 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/lib/libtorch_python.so)
+frame #12: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4daa2c]
+frame #13: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f0030]
+frame #14: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #15: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #16: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #17: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #18: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #19: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #20: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #21: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #22: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #23: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #24: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #25: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #26: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #27: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #28: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #29: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #30: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #31: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f00f7]
+frame #32: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x502169]
+frame #33: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4df06f]
+frame #34: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4dcff0]
+frame #35: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x590d9c]
+frame #36: _PyObject_GC_NewVar + 0x23d (0x4d8a6d in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #37: PyTuple_New + 0x16d (0x4d87ad in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #38: _PyEval_EvalFrameDefault + 0x1300 (0x4e8970 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #39: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50bc4c]
+frame #40: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x510d03]
+frame #41: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x552d32]
+frame #42: _PyEval_EvalFrameDefault + 0x3d3 (0x4e7a43 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #43: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #44: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #45: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #46: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x5051bd]
+frame #47: _PyEval_EvalFrameDefault + 0x1236 (0x4e88a6 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #48: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #49: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #50: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #51: _PyObject_FastCallDictTstate + 0xbe (0x4efc0e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #52: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+frame #53: _PyObject_MakeTpCall + 0x303 (0x4f0423 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #54: _PyEval_EvalFrameDefault + 0x4c73 (0x4ec2e3 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #55: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #56: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #57: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #58: _PyEval_EvalFrameDefault + 0x4d34 (0x4ec3a4 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #59: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4f7e63]
+frame #60: _PyEval_EvalFrameDefault + 0x690 (0x4e7d00 in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #61: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x4e676a]
+frame #62: _PyObject_FastCallDictTstate + 0x13e (0x4efc8e in /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python)
+frame #63: /home/tan.1422/zhiheng/miniconda3/envs/mdlm/bin/python() [0x50255f]
+
+
+Validation: |          | 0/? [00:00<?, ?it/s][AError executing job with overrides: ['mode=train_classifier', 'diffusion=absorbing_state', 'T=0', 'parameterization=subs', 'time_conditioning=False', 'data=qm9', 'data.label_col=sa_score', 'data.label_col_pctile=null', '+data.label_col_value_threshold=3.0', 'data.num_classes=2', 'loader.global_batch_size=2048', 'loader.eval_global_batch_size=4096', 'classifier_backbone=dit', 'classifier_model=tiny-classifier', 'model.length=32', 'optim.lr=3e-4', 'lr_scheduler=cosine_decay_warmup', 'lr_scheduler.warmup_t=1000', 'lr_scheduler.lr_min=3e-6', 'callbacks.checkpoint_every_n_steps.every_n_train_steps=5000', 'callbacks.checkpoint_monitor.monitor=val/cross_entropy', 'trainer.devices=1', 'trainer.val_check_interval=1.0', 'trainer.max_steps=25000', 'wandb.group=train_classifier', 'wandb.name=qm9-sa-classifier_le3.0']
+Traceback (most recent call last):
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1133, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/queue.py", line 179, in get
+    raise Empty
+_queue.Empty
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/local/scratch/zhiheng/guidance/main.py", line 250, in <module>
+    main()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/main.py", line 94, in decorated_main
+    _run_hydra(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 394, in _run_hydra
+    _run_app(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 457, in _run_app
+    run_and_report(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 223, in run_and_report
+    raise ex
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 220, in run_and_report
+    return func()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 458, in <lambda>
+    lambda: hydra.run(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/hydra.py", line 132, in run
+    _ = ret.return_value
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/core/utils.py", line 260, in return_value
+    raise self._return_value
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/core/utils.py", line 186, in run_job
+    ret.return_value = task_function(task_cfg)
+  File "/local/scratch/zhiheng/guidance/main.py", line 243, in main
+    _train(config, logger, tokenizer,
+  File "/local/scratch/zhiheng/guidance/main.py", line 158, in _train
+    trainer.fit(model, train_ds, valid_ds, ckpt_path=ckpt_path)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 544, in fit
+    call._call_and_handle_interrupt(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/call.py", line 43, in _call_and_handle_interrupt
+    return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+    return function(*args, **kwargs)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 580, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 987, in _run
+    results = self._run_stage()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 1033, in _run_stage
+    self.fit_loop.run()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fit_loop.py", line 205, in run
+    self.advance()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fit_loop.py", line 363, in advance
+    self.epoch_loop.run(self._data_fetcher)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 141, in run
+    self.on_advance_end(data_fetcher)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 295, in on_advance_end
+    self.val_loop.run()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/utilities.py", line 182, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 128, in run
+    batch, batch_idx, dataloader_idx = next(data_fetcher)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fetchers.py", line 133, in __next__
+    batch = super().__next__()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fetchers.py", line 60, in __next__
+    batch = next(self.iterator)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/utilities/combined_loader.py", line 341, in __next__
+    out = next(self._iterator)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/utilities/combined_loader.py", line 142, in __next__
+    out = next(self.iterators[0])
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 631, in __next__
+    data = self._next_data()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1329, in _next_data
+    idx, data = self._get_data()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1285, in _get_data
+    success, data = self._try_get_data()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1146, in _try_get_data
+    raise RuntimeError(f'DataLoader worker (pid(s) {pids_str}) exited unexpectedly') from e
+RuntimeError: DataLoader worker (pid(s) 811722, 811845, 811927, 812016, 812144, 812235, 812401) exited unexpectedly
+Traceback (most recent call last):
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1133, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/queue.py", line 179, in get
+    raise Empty
+_queue.Empty
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/local/scratch/zhiheng/guidance/main.py", line 250, in <module>
+    main()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/main.py", line 94, in decorated_main
+    _run_hydra(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 394, in _run_hydra
+    _run_app(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 457, in _run_app
+    run_and_report(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 223, in run_and_report
+    raise ex
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 220, in run_and_report
+    return func()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/utils.py", line 458, in <lambda>
+    lambda: hydra.run(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/_internal/hydra.py", line 132, in run
+    _ = ret.return_value
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/core/utils.py", line 260, in return_value
+    raise self._return_value
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/hydra/core/utils.py", line 186, in run_job
+    ret.return_value = task_function(task_cfg)
+  File "/local/scratch/zhiheng/guidance/main.py", line 243, in main
+    _train(config, logger, tokenizer,
+  File "/local/scratch/zhiheng/guidance/main.py", line 158, in _train
+    trainer.fit(model, train_ds, valid_ds, ckpt_path=ckpt_path)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 544, in fit
+    call._call_and_handle_interrupt(
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/call.py", line 43, in _call_and_handle_interrupt
+    return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+    return function(*args, **kwargs)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 580, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 987, in _run
+    results = self._run_stage()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/trainer/trainer.py", line 1033, in _run_stage
+    self.fit_loop.run()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fit_loop.py", line 205, in run
+    self.advance()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fit_loop.py", line 363, in advance
+    self.epoch_loop.run(self._data_fetcher)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 141, in run
+    self.on_advance_end(data_fetcher)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 295, in on_advance_end
+    self.val_loop.run()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/utilities.py", line 182, in _decorator
+    return loop_run(self, *args, **kwargs)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/evaluation_loop.py", line 128, in run
+    batch, batch_idx, dataloader_idx = next(data_fetcher)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fetchers.py", line 133, in __next__
+    batch = super().__next__()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/loops/fetchers.py", line 60, in __next__
+    batch = next(self.iterator)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/utilities/combined_loader.py", line 341, in __next__
+    out = next(self._iterator)
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/lightning/pytorch/utilities/combined_loader.py", line 142, in __next__
+    out = next(self.iterators[0])
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 631, in __next__
+    data = self._next_data()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1329, in _next_data
+    idx, data = self._get_data()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1285, in _get_data
+    success, data = self._try_get_data()
+  File "/home/tan.1422/zhiheng/miniconda3/envs/mdlm/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1146, in _try_get_data
+    raise RuntimeError(f'DataLoader worker (pid(s) {pids_str}) exited unexpectedly') from e
+RuntimeError: DataLoader worker (pid(s) 811722, 811845, 811927, 812016, 812144, 812235, 812401) exited unexpectedly
+wandb: Waiting for W&B process to finish... (failed 1).
+wandb: 
+wandb: Run history:
+wandb:               epoch ▁▁▁▁▁▁
+wandb: trainer/global_step ▁▁▂▂▄▄▅▅▇▇██
+wandb:        trainer/loss ██▇▆▄▁
+wandb:          trainer/lr ▁▂▄▅▇█
+wandb: 
+wandb: Run summary:
+wandb:               epoch 0
+wandb: trainer/global_step 59
+wandb:        trainer/loss 0.39387
+wandb:          trainer/lr 2e-05
+wandb: 
+wandb: You can sync this run to the cloud by running:
+wandb: wandb sync ./wandb/offline-run-20260522_145110-qm9-sa-classifier_le3.0_1
+wandb: Find logs at: ./wandb/offline-run-20260522_145110-qm9-sa-classifier_le3.0_1/logs

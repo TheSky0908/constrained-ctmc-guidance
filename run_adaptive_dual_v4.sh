@@ -1,0 +1,32 @@
+#!/bin/bash
+# v4: extreme C tests — C=0 (require p=1) and C=-log 1.01 ≈ -0.00995 (require p>1,
+# impossible). With these C, the dual update never finds satisfaction → λ
+# monotonically rises and (likely) saturates at λ_max=50.
+set -e
+cd /local/scratch/zhiheng/guidance
+export CUDA_VISIBLE_DEVICES=1
+mkdir -p logs
+
+N_BATCHES=125
+BS=4
+TAU=3.0
+TAG=n500
+
+# C ρ λ₀ λmax
+declare -a RUNS=(
+  "0.0      0.2 0.0 50.0"
+  "0.0      0.5 0.0 50.0"
+  "-0.00995 0.2 0.0 50.0"
+  "-0.00995 0.5 0.0 50.0"
+)
+
+for r in "${RUNS[@]}"; do
+  set -- $r
+  C=$1; RHO=$2; L0=$3; LMAX=$4
+  LOG=logs/sa_dcbg_adual_${TAG}_C${C}_rho${RHO}_trainTau${TAU}.log
+  echo "[$(date)] === adaptive_dual C=$C ρ=$RHO -> $LOG ==="
+  bash sample_sa_dcbg_adaptive.sh $C $RHO $L0 $LMAX $N_BATCHES $BS $TAU $TAG > $LOG 2>&1
+  grep -E "adaptive_dual\] step|Valid               :|Viol|Novel|wrote adaptive" $LOG | head -25
+done
+
+echo "[$(date)] all 4 adaptive_dual v4 runs done"

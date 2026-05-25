@@ -58,6 +58,17 @@ eval:
   generated_samples_path: ''
   max_samples: 50_000
 
+discriminator:
+  save_dir: ''        # training: directory to save checkpoints
+  checkpoint_path: '' # sampling: path to h_phi_final.pt (or any step checkpoint)
+  num_steps: 50000
+  batch_size: 16
+  lr: 3e-4
+  log_every: 100
+  save_every: 5000
+  steps_per_traj: 0  # 0 = use all L+1 timesteps; set >0 to subsample
+  epsilon: 0.05      # constrained-fhs: zero out h_phi < epsilon before token sampling
+
 optim:
   weight_decay: 0
   lr: 3e-4

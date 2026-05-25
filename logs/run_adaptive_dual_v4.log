@@ -1,0 +1,29 @@
+[Mon May 25 01:49:35 AM EDT 2026] === adaptive_dual C=0.0 ρ=0.2 -> logs/sa_dcbg_adual_n500_C0.0_rho0.2_trainTau3.0.log ===
+  Valid               :   375 (75.00%)
+  Novel (of valid)    :    89 (23.73%)
+  Novel & SA<=3.0     :    46  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[sa_eval] wrote adaptive_dual per-step trajectory to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_C0.0_rho0.2_l00.0_lmax50.0_trainTau3.0_traj.json
+[Mon May 25 02:03:59 AM EDT 2026] === adaptive_dual C=0.0 ρ=0.5 -> logs/sa_dcbg_adual_n500_C0.0_rho0.5_trainTau3.0.log ===
+  Valid               :   387 (77.40%)
+  Novel (of valid)    :   102 (26.36%)
+  Novel & SA<=3.0     :    57  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[sa_eval] wrote adaptive_dual per-step trajectory to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_C0.0_rho0.5_l00.0_lmax50.0_trainTau3.0_traj.json
+[Mon May 25 02:18:16 AM EDT 2026] === adaptive_dual C=-0.00995 ρ=0.2 -> logs/sa_dcbg_adual_n500_C-0.00995_rho0.2_trainTau3.0.log ===
+  Valid               :   375 (75.00%)
+  Novel (of valid)    :    87 (23.20%)
+  Novel & SA<=3.0     :    43  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[sa_eval] wrote adaptive_dual per-step trajectory to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_C-0.00995_rho0.2_l00.0_lmax50.0_trainTau3.0_traj.json
+[Mon May 25 02:32:38 AM EDT 2026] === adaptive_dual C=-0.00995 ρ=0.5 -> logs/sa_dcbg_adual_n500_C-0.00995_rho0.5_trainTau3.0.log ===
+  Valid               :   382 (76.40%)
+  Novel (of valid)    :    93 (24.35%)
+  Novel & SA<=3.0     :    50  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[sa_eval] wrote adaptive_dual per-step trajectory to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_C-0.00995_rho0.5_l00.0_lmax50.0_trainTau3.0_traj.json
+[Mon May 25 02:46:44 AM EDT 2026] all 4 adaptive_dual v4 runs done

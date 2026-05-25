@@ -1,0 +1,2 @@
+Seed,Sampler,Epsilon,Num Samples,Valid,Unique,Novel (of valid),Constraint Satisfaction Rate,QED Mean,QED Median,Novel QED Mean,Novel QED Median
+1,constrained-fhs-eps0.1,0.1,1000,0.653,0.996937212863706,0.6906584992343032,0.451,0.45754932725307107,0.4696857961120063,0.46022664709963307,0.4719836929824228

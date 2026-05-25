@@ -1,0 +1,25 @@
+[Sun May 24 11:55:01 PM EDT 2026] === adaptive_dual C=0.1054 ρ=0.2 -> logs/sa_dcbg_adual_n500_C0.1054_rho0.2_trainTau3.0.log ===
+  Valid               :   372 (74.40%)
+  Novel (of valid)    :    98 (26.34%)
+  Novel & SA<=3.0     :    49  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[Mon May 25 12:09:24 AM EDT 2026] === adaptive_dual C=0.1054 ρ=0.5 -> logs/sa_dcbg_adual_n500_C0.1054_rho0.5_trainTau3.0.log ===
+  Valid               :   386 (77.20%)
+  Novel (of valid)    :    97 (25.13%)
+  Novel & SA<=3.0     :    47  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[Mon May 25 12:23:35 AM EDT 2026] === adaptive_dual C=0.0513 ρ=0.2 -> logs/sa_dcbg_adual_n500_C0.0513_rho0.2_trainTau3.0.log ===
+  Valid               :   375 (75.00%)
+  Novel (of valid)    :    96 (25.60%)
+  Novel & SA<=3.0     :    51  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[Mon May 25 12:37:56 AM EDT 2026] === adaptive_dual C=0.0513 ρ=0.5 -> logs/sa_dcbg_adual_n500_C0.0513_rho0.5_trainTau3.0.log ===
+  Valid               :   386 (77.20%)
+  Novel (of valid)    :    99 (25.65%)
+  Novel & SA<=3.0     :    53  <-- CDD "Novel" column
+  Violation rates (frac valid with SA > tau):
+  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
+[Mon May 25 12:52:05 AM EDT 2026] all 4 adaptive_dual v2 runs done

@@ -1112,6 +1112,53 @@ class Diffusion(L.LightningModule):
     raise NotImplementedError
 
   @torch.no_grad()
+  def _compute_gamma_t(self, t_norm: float) -> float:
+    """Compute time-varying gamma based on guidance.gamma_schedule.
+
+    t_norm is the normalized sampling time in [eps, 1]: 1 = fully noisy
+    (start of sampling), 0 = clean (end of sampling).
+
+    Supported schedules (set via guidance.gamma_schedule):
+      - null / 'constant'        : returns guidance.gamma
+      - 'linear_increasing'      : gmin + (gmax-gmin) * (1 - t)
+      - 'quadratic_increasing'   : gmin + (gmax-gmin) * (1 - t)^2
+      - 'linear_decreasing'      : gmin + (gmax-gmin) * t
+      - 'cosine_increasing'      : gmin + (gmax-gmin) * 0.5*(1 - cos(pi*(1-t)))
+      - 'step'                   : guidance.gamma_low if t > guidance.gamma_step_at
+                                   else guidance.gamma_high
+    gmin/gmax come from guidance.gamma_min / guidance.gamma_max.
+    """
+    schedule = omegaconf.OmegaConf.select(
+        self.config, 'guidance.gamma_schedule', default=None)
+    if schedule is None or schedule == 'constant':
+      return float(self.config.guidance.gamma)
+    gmin = float(omegaconf.OmegaConf.select(
+        self.config, 'guidance.gamma_min', default=0.0))
+    gmax = float(omegaconf.OmegaConf.select(
+        self.config, 'guidance.gamma_max', default=self.config.guidance.gamma))
+    t = float(t_norm)
+    if schedule == 'linear_increasing':
+      return gmin + (gmax - gmin) * (1.0 - t)
+    if schedule == 'quadratic_increasing':
+      return gmin + (gmax - gmin) * (1.0 - t) ** 2
+    if schedule == 'linear_decreasing':
+      return gmin + (gmax - gmin) * t
+    if schedule == 'cosine_increasing':
+      return gmin + (gmax - gmin) * 0.5 * (1.0 - math.cos(math.pi * (1.0 - t)))
+    if schedule == 'step':
+      step_at = float(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_step_at', default=0.5))
+      g_low = float(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_low', default=1.0))
+      g_high = float(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_high', default=5.0))
+      return g_low if t > step_at else g_high
+    if schedule == 'adaptive_dual':
+      # Adaptive path lives in _diffusion_sample; this fallback is never used
+      # there. Return the static gamma in case some other callsite hits this.
+      return float(self.config.guidance.gamma)
+    raise ValueError(f'Unknown gamma_schedule: {schedule}')
+
   def _diffusion_sample(
     self,
     classifier_model: typing.Optional[classifier.Classifier] = None,
@@ -1132,12 +1179,36 @@ class Diffusion(L.LightningModule):
     NFEs = 0
     cache = None
 
+    # Adaptive-dual guidance state (per-sample λ via projected gradient ascent
+    # on the dual of min KL(q||p) s.t. E_q[-log p(y|x)] ≤ C). See
+    # /idea-stage adaptive_dual_guidance.pdf or the docstring of
+    # _compute_gamma_t for the schedule registry.
+    adaptive_dual = (
+        getattr(self.config, 'guidance', None) is not None
+        and self.config.guidance.method == 'cbg'
+        and omegaconf.OmegaConf.select(
+            self.config, 'guidance.gamma_schedule', default=None) == 'adaptive_dual'
+    )
+    if adaptive_dual:
+      bsz_init = xt.shape[0]
+      ad_lambda_init = float(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_lambda_init', default=0.0))
+      ad_rho = float(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_rho', default=0.5))
+      ad_C = float(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_C', default=-math.log(0.8)))
+      ad_lambda_max = float(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_lambda_max', default=50.0))
+      lambda_t = torch.full((bsz_init,), ad_lambda_init, device=self.device)
+      ad_traj = []  # per-step (mean, max) of λ for logging
     for i in pbar:
       t = timesteps[i]
       if self.T > 0:  # t in {1/T,..., 1}, to match training
         t = (t * self.T).to(torch.int)
         t = t / self.T
         t += (1 / self.T)
+      # Scalar normalized time for gamma schedule (taken before broadcast).
+      t_scalar_for_gamma = float(t.item()) if t.ndim == 0 else float(t[0].item())
       t = t * torch.ones(xt.shape[0], 1, device=self.device)
       if cache is None:
         NFEs += 1
@@ -1173,10 +1244,38 @@ class Diffusion(L.LightningModule):
             move_chance_s=move_chance_s,
             cache=cache)
         elif self.config.guidance.method == 'cbg':
+          if adaptive_dual:
+            # Algm 1 of adaptive_dual_guidance.pdf: project-grad-ascent on the
+            # dual variable λ. g'(λ) = -E_q[log p(y|x)] - C, so we ascend with
+            #   λ_{k+1} = (λ_k - ρ·(log p(y|x_t) + C))_+
+            # We use the current x_t as a single-sample estimate of E_q[...].
+            with torch.no_grad():
+              log_p_y_xt = classifier_model.get_log_probs(
+                  xt, sigma_t)[..., self.config.guidance.condition]  # (B,)
+            lambda_t = torch.clamp(
+                lambda_t - ad_rho * (log_p_y_xt + ad_C),
+                min=0.0, max=ad_lambda_max)
+            # Record per-step state: per-sample λ + per-sample log p(y|x_t),
+            # plus convenience aggregates. Saved for downstream plotting.
+            ad_traj.append({
+                't_norm': float(t_scalar_for_gamma),
+                'lambda': lambda_t.detach().cpu().numpy().tolist(),    # list len B
+                'log_p_y': log_p_y_xt.detach().cpu().numpy().tolist(), # list len B
+                'mean_lambda': float(lambda_t.mean()),
+                'max_lambda': float(lambda_t.max()),
+                'mean_log_p_y': float(log_p_y_xt.mean()),
+            })
+            gamma_t = lambda_t  # tensor (B,)
+            # Cache reuses x_theta + per-jump classifier_log_prob (no gamma);
+            # with adaptive λ the gamma factor differs per step, but cache
+            # contents are still correct. The outer allclose-check below
+            # invalidates the cache when state changes.
+          else:
+            gamma_t = self._compute_gamma_t(t_scalar_for_gamma)
           xs, q_xs, cache = self._cbg_denoise(
             classifier_model=classifier_model,
             conditioning_class=self.config.guidance.condition,
-            gamma=self.config.guidance.gamma,
+            gamma=gamma_t,
             use_approx=self.config.guidance.use_approx,
             xt=xt,
             time_conditioning=sigma_t,
@@ -1206,6 +1305,21 @@ class Diffusion(L.LightningModule):
         # Disable caching
         cache = None
       xt = xs
+    if adaptive_dual and ad_traj:
+      # Brief stats: mean/max λ and mean log p(y|x_t) at the start, middle,
+      # and end of sampling. Useful to confirm dual variable is responding.
+      n = len(ad_traj)
+      pts = [0, n // 4, n // 2, 3 * n // 4, n - 1]
+      print('[adaptive_dual] λ trajectory (mean / max λ, mean log p(y|x_t)):')
+      for k in pts:
+        entry = ad_traj[k]
+        print(f'  step {k:3d}/{n-1}: mean_λ={entry["mean_lambda"]:.3f}  '
+              f'max_λ={entry["max_lambda"]:.3f}  '
+              f'mean_log_p_y={entry["mean_log_p_y"]:+.3f}')
+      # Full per-step, per-sample trajectory of the *last* batch — sa_eval.py
+      # is expected to scrape this attribute after every sample() call and
+      # accumulate across all batches.
+      self._last_adaptive_dual_traj = ad_traj
     return xt
 
   def _ddpm_denoise(
@@ -1434,15 +1548,20 @@ class Diffusion(L.LightningModule):
       raise NotImplementedError(
         f"Diffusion type {self.diffusion} not implemented.")
 
-    # Apply guidance
+    # Apply guidance. `gamma` may be a Python float (constant / static schedule)
+    # or a (B,) tensor (adaptive-dual). Broadcast tensor to (B, 1, 1).
+    if isinstance(gamma, torch.Tensor) and gamma.ndim > 0:
+      gamma_b = gamma.view(-1, 1, 1)
+    else:
+      gamma_b = gamma
     with torch.no_grad():
       if self.diffusion == 'absorbing_state':
-        guided_log_probs = (gamma * classifier_log_prob) + diffusion_log_probs
+        guided_log_probs = (gamma_b * classifier_log_prob) + diffusion_log_probs
         copy_flag = (xt != self.mask_index)
         guided_log_probs[copy_flag] = self.neg_infinity
         guided_log_probs[copy_flag, xt[copy_flag]] = 0.0
       elif self.diffusion == 'uniform':
-        guided_log_probs = (gamma * classifier_log_prob) + diffusion_log_probs
+        guided_log_probs = (gamma_b * classifier_log_prob) + diffusion_log_probs
       else:
         raise NotImplementedError(
           f"Diffusion type {self.diffusion} not implemented.")

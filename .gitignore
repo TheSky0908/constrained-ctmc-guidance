@@ -2,6 +2,41 @@
 .DS_Store
 .ipynb_checkpoints/
 __pycache__/
-.hf_cache
-outputs/
+
+# dataset / huggingface caches
+.hf_cache/
+.data_cache/
+
+# hydra per-run scratch
+.hydra/
+hydra_logs/
+
+# model checkpoints / weights (the large files inside outputs/)
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# wandb run dirs (large binary metadata, recreatable)
+wandb/
+
+# agent / aris scratch
+.agents/
+.aris/
 watch_folder/
+
+# python
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# editor / system
+.vscode/
+*.swp
+*.swo

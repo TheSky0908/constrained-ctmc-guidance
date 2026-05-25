@@ -3,3 +3,22 @@ condition: 0
 classifier_checkpoint_path: ''
 gamma: 1.0
 use_approx: False  # use first-order approximation
+# Optional time-varying gamma schedule. If null, constant gamma is used.
+# Supported: linear_increasing, quadratic_increasing, linear_decreasing,
+#            cosine_increasing, step, adaptive_dual
+# t convention: t=1 (start of sampling, fully noisy) -> t=0 (end, clean).
+gamma_schedule: null
+gamma_min: 0.0
+gamma_max: ${guidance.gamma}
+# step-schedule specific
+gamma_step_at: 0.5
+gamma_low: 1.0
+gamma_high: 5.0
+# adaptive_dual schedule:
+#   λ_{k+1} = clip((λ_k - ρ · (log p(y|x_t) + C))_+, 0, λ_max)
+#   gamma_C: log-prob threshold (e.g. -log 0.8 ≈ 0.223, -log 0.6 ≈ 0.511);
+#   gamma_rho: dual stepsize; gamma_lambda_init: initial λ_0; gamma_lambda_max: cap on λ.
+gamma_C: 0.2231
+gamma_rho: 0.5
+gamma_lambda_init: 0.0
+gamma_lambda_max: 50.0
