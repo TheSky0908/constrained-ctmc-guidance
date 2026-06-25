@@ -1,0 +1,9 @@
+sched,gmin,gmax,seed,steps,seconds,valid,unique,valid_novel,viol,novel_rate,qed,run_name
+linear_decreasing,0.5,4.0,1,64,533,23,23,23,0.0,1.0,0.48750103502524417,sched_linear_decreasing_gmin0.5_gmax4.0_seed1_steps64
+linear_decreasing,1.0,3.5,1,64,544,44,44,43,0.022727272727272707,0.9772727272727273,0.5076462020366129,sched_linear_decreasing_gmin1.0_gmax3.5_seed1_steps64
+linear_decreasing,1.0,4.0,1,64,525,23,23,23,0.0,1.0,0.48750103502524417,sched_linear_decreasing_gmin1.0_gmax4.0_seed1_steps64
+linear_increasing,1.0,4.0,1,64,551,160,160,131,0.18125000000000002,0.81875,0.4597412165742156,sched_linear_increasing_gmin1.0_gmax4.0_seed1_steps64
+linear_increasing,1.0,8.0,1,64,550,141,141,122,0.13475177304964536,0.8652482269503546,0.46314023283153344,sched_linear_increasing_gmin1.0_gmax8.0_seed1_steps64
+quadratic_increasing,1.0,12.0,1,64,554,140,140,123,0.12142857142857144,0.8785714285714286,0.4622880649721845,sched_quadratic_increasing_gmin1.0_gmax12.0_seed1_steps64
+linear_increasing,1.0,16.0,1,64,545,138,138,116,0.1594202898550725,0.8405797101449275,0.45055222750960894,sched_linear_increasing_gmin1.0_gmax16.0_seed1_steps64
+quadratic_increasing,1.0,24.0,1,64,549,131,131,119,0.09160305343511455,0.9083969465648855,0.4757206745883641,sched_quadratic_increasing_gmin1.0_gmax24.0_seed1_steps64

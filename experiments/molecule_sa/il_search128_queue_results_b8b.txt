@@ -1,0 +1,1 @@
+r8_J4n1_C95_lmax3p75  C=0.05129 rho=0.15 l0=2.0 lmax=3.75 J=4 n=1 seed=1  viol3.0=0.07 valid=400

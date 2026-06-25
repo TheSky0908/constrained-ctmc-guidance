@@ -22,3 +22,28 @@ gamma_C: 0.2231
 gamma_rho: 0.5
 gamma_lambda_init: 0.0
 gamma_lambda_max: 50.0
+# Dual-ascent update order for adaptive_dual:
+#   'update_first' (default): eval log r at current x_t, update λ, then draw
+#                             x_{t+1} with the updated λ. (Original behaviour.)
+#   'sample_first'           : draw x_{t+1} with current λ, then update λ from
+#                             log r at the new x_{t+1} (paper Algorithm 1).
+gamma_adual_update_order: update_first
+# First-order inner-loop per-step dual solve (paper Algorithm 2).
+#   gamma_adual_inner_loop: master switch. False (default) -> the single-sample,
+#     single-iteration update_first/sample_first path runs UNCHANGED (n=1,J=1).
+#     True -> at each step freeze x_t, solve λ*_k by projected grad ascent with
+#     an n-sample MC estimate over up to J iters, then advance with λ*_k.
+#   gamma_adual_n_mc   (n): MC samples per inner iteration (variance reduction).
+#   gamma_adual_n_inner(J): max inner iterations.
+#   gamma_adual_eps_tol   : dual-residual early-stop tol |ĝ'|≤ε (null = run all J).
+# Cost: the diffusion forward (NFE) is computed ONCE per step regardless of n,J;
+# only the classifier is re-run n·J× (batchable), so raising n is cheap, J less so.
+gamma_adual_inner_loop: False
+gamma_adual_n_mc: 4
+gamma_adual_n_inner: 4
+gamma_adual_eps_tol: null
+# Classifier-only time-conditioning override (independent of the global
+# `time_conditioning`, which also drives the base model). null = inherit global.
+# Set True to feed real σ_t into a time-DEPENDENT discriminator while the base
+# MDLM stays time-independent.
+classifier_time_conditioning: null

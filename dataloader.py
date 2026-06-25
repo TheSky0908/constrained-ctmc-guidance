@@ -269,6 +269,41 @@ def get_dataset(
       'amazon_polarity',
       cache_dir=cache_dir,
       streaming=streaming)
+  elif dataset_name == 'jigsaw':
+    # Jigsaw Toxic Comment Classification. Consolidate the six toxicity
+    # sub-labels into a single binary `toxic` target (toxic vs non-toxic), as
+    # in the CDD paper. Used to train the noisy guidance classifier (D-CBG /
+    # adaptive-dual) and the external GPT-Neo violation scorer. The HF mirror
+    # exposes train / validation / test; we map mode='valid' -> 'validation'.
+    raw = datasets.load_dataset(
+      'Arsive/toxicity_classification_jigsaw',
+      cache_dir=cache_dir, streaming=streaming, trust_remote_code=True)
+    _sub_labels = ['toxic', 'severe_toxic', 'obscene', 'threat', 'insult',
+                   'identity_hate']
+
+    def _binarize_toxic(ex):
+      ex['toxic'] = int(any(int(ex[c]) > 0 for c in _sub_labels))
+      return ex
+
+    dataset = datasets.DatasetDict({
+      'train': raw['train'],
+      'validation': raw['validation']}).map(_binarize_toxic)
+  elif dataset_name == 'jigsaw_scored':
+    # Held-out Jigsaw text labelled with the GPT-Neo surrogate's continuous
+    # toxicity score (see label_jigsaw_with_surrogate.py). Used to train the
+    # per-tau guidance classifiers: class 1 = (toxicity_score <= tau), i.e.
+    # "acceptable at level tau" — the desirable class to guide toward.
+    scored_dir = os.environ.get(
+      'JIGSAW_SCORED_DIR',
+      os.path.join(cache_dir, 'jigsaw_surrogate_scored'))
+    dataset = datasets.load_from_disk(scored_dir)
+    if label_value_threshold is not None and label_col is not None:
+      def _thr(split):
+        binary = (np.array(split[label_col])
+                  <= label_value_threshold).astype(int)
+        return split.add_column(f"{label_col}_threshold", binary)
+      dataset = datasets.DatasetDict({k: _thr(v) for k, v in dataset.items()})
+      label_col = f"{label_col}_threshold"
   elif dataset_name == 'qm9':
     dataset = datasets.load_dataset(
       'yairschiff/qm9',
@@ -300,6 +335,33 @@ def get_dataset(
     dataset = dataset.train_test_split(
       test_size=0.05, seed=42)  # hard-coded seed & size
     dataset = dataset[mode]
+  elif dataset_name == 'qm9_novel':
+    # Base-model-generated QM9 SMILES labelled by QM9-train membership
+    # (novel=1 / rediscovered=0), mixed with QM9-train molecules as guaranteed
+    # not-novel (label 0). Built by
+    # experiments/molecule_novelty/build_novelty_dataset.py. Used to train the
+    # p(novel | x_t) D-CBG / adaptive-dual guidance classifier: class 1 = novel,
+    # the desirable class to guide toward. `novel` is already binary, so no
+    # thresholding is applied (mirrors the qm9 SMILES tokenization path since
+    # 'qm9' in 'qm9_novel').
+    scored_dir = os.environ.get(
+      'QM9_NOVELTY_DIR',
+      os.path.join(cache_dir, 'qm9_novelty_scored'))
+    dataset = datasets.load_from_disk(scored_dir)
+  elif dataset_name == 'qm9_novel_rollout':
+    # Pretrained-model-rollout dataset for the eq.(3) novelty classifier. Each
+    # row is a model-generated intermediate state x_t (already tokenized, with
+    # mask tokens), its normalized step time `t`, and the `novel` label of the
+    # rollout trajectory's terminal molecule. Built by
+    # experiments/molecule_novelty/build_rollout_dataset.py. The rows are
+    # already in the classifier's expected format (`input_ids`, `attention_mask`,
+    # `t`, `novel`), so we bypass SMILES tokenization entirely and return the
+    # split directly (mirrors the `_path` cache-hit early return above).
+    rollout_dir = os.environ.get(
+      'QM9_NOVELTY_ROLLOUT_DIR',
+      os.path.join(cache_dir, 'qm9_novelty_rollout'))
+    LOGGER.info(f'Loading rollout data from: {rollout_dir} [{mode}]')
+    return datasets.load_from_disk(rollout_dir)[mode].with_format('torch')
   elif dataset_name == 'ten_species':
     return custom_datasets.ten_species_dataset.TenSpeciesDataset(
       split=mode,
@@ -338,6 +400,8 @@ def get_dataset(
       text = example['content']
     elif 'qm9' in dataset_name:
       text = example['canonical_smiles']
+    elif dataset_name in ('jigsaw', 'jigsaw_scored'):
+      text = example['comment_text']
     elif dataset_name == 'ten_species':
       text = example['sequence']
     else:

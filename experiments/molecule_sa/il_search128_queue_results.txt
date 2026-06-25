@@ -1,0 +1,13 @@
+b2_l04_lmax10_C99_r20_J2  C=0.01005 rho=0.20 l0=4.0 lmax=10.0 J=2 n=1 seed=1  viol3.0=0.13986013986013987 valid=286
+b2_l04_lmax8_C99_r20_J2  C=0.01005 rho=0.20 l0=4.0 lmax=8.0 J=2 n=1 seed=1  viol3.0=0.13829787234042554 valid=282
+b2_l04_lmax5_C99_r20_J2  C=0.01005 rho=0.20 l0=4.0 lmax=5.0 J=2 n=1 seed=1  viol3.0=0.12411347517730496 valid=282
+b2_l04_lmax10_C99_r10_J2  C=0.01005 rho=0.10 l0=4.0 lmax=10.0 J=2 n=1 seed=1  viol3.0=0.12828947368421054 valid=304
+b3_J4n4_C90_lmax5_l02  C=0.10536 rho=0.20 l0=2.0 lmax=5.0 J=4 n=4 seed=1  viol3.0=0.07552083333333333 valid=384
+b3_J3n4_C90_lmax5_l02  C=0.10536 rho=0.20 l0=2.0 lmax=5.0 J=3 n=4 seed=1  viol3.0=0.09047619047619047 valid=420
+b3_J2n4_C90_lmax5_l02  C=0.10536 rho=0.20 l0=2.0 lmax=5.0 J=2 n=4 seed=1  viol3.0=0.09112709832134293 valid=417
+r5_J4n1_C95_lmax2p5  C=0.05129 rho=0.15 l0=2.0 lmax=2.5 J=4 n=1 seed=1  viol3.0=0.06377551020408163 valid=392
+r5_J4n1_C95_lmax2p25  C=0.05129 rho=0.15 l0=2.0 lmax=2.25 J=4 n=1 seed=1  viol3.0=0.08010335917312661 valid=387
+r5_J5n1_C95_lmax2p5  C=0.05129 rho=0.15 l0=2.0 lmax=2.5 J=5 n=1 seed=1  viol3.0=0.07512953367875648 valid=386
+r5_J3n1_C95_lmax2p25  C=0.05129 rho=0.15 l0=2.0 lmax=2.25 J=3 n=1 seed=1  viol3.0=0.07881773399014778 valid=406
+r5_J4n1_C95_lmax2p75  C=0.05129 rho=0.15 l0=2.0 lmax=2.75 J=4 n=1 seed=1  viol3.0=0.05089058524173028 valid=393
+r5_J4n1_C90_lmax2p5  C=0.10536 rho=0.20 l0=2.0 lmax=2.5 J=4 n=1 seed=1  viol3.0=0.0639386189258312 valid=391

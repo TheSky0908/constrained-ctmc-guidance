@@ -402,6 +402,20 @@ class Classifier(L.LightningModule):
       # do not add noise for AR FUDGE and AR PPLM
       logits = self.forward(
         x0, attention_mask=attention_mask)
+    elif getattr(self.config.training, 'classifier_rollout', False):
+      # Pretrained-model path (eq. 3): `input_ids` is ALREADY a model-rollout
+      # intermediate state x_t (not clean x0) and `t` is its step time, so we do
+      # NOT re-noise via _q_xt. The label (read below) is the trajectory's
+      # terminal outcome. Time-conditioning must be on for `t` to matter.
+      xt = x0
+      t = batch['t'].to(self.dtype).view(-1)
+      if self.change_of_variables:
+        time_conditioning = t[:, None]
+      else:
+        sigma, _ = self.noise(t)
+        time_conditioning = sigma[:, None]
+      logits = self.forward(
+        xt, time_conditioning, attention_mask=attention_mask)
     else:
       t = self._sample_t(x0.shape[0])
       if self.T > 0:

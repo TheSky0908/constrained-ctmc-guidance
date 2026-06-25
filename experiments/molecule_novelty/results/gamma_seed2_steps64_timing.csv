@@ -1,0 +1,3 @@
+gamma,seed,steps,seconds,valid,viol,valid_novel
+4,2,64,528,24,0.0,24
+5,2,64,503,3,0.0,3

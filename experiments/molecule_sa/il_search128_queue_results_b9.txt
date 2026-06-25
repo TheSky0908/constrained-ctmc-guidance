@@ -1,0 +1,6 @@
+r9_J4n1_C95_lmax2p9  C=0.05129 rho=0.15 l0=2.0 lmax=2.9 J=4 n=1 seed=1  viol3.0=0.04591836734693878 valid=392
+r9_J4n1_C95_lmax2p95  C=0.05129 rho=0.15 l0=2.0 lmax=2.95 J=4 n=1 seed=1  viol3.0=0.04627249357326478 valid=389
+r9_J4n1_C95_lmax3p05  C=0.05129 rho=0.15 l0=2.0 lmax=3.05 J=4 n=1 seed=1  viol3.0=0.046511627906976744 valid=387
+r9_J4n1_C95_lmax3p1  C=0.05129 rho=0.15 l0=2.0 lmax=3.1 J=4 n=1 seed=1  viol3.0=0.05412371134020619 valid=388
+r9_J4n1_C95_lmax2p85  C=0.05129 rho=0.15 l0=2.0 lmax=2.85 J=4 n=1 seed=1  viol3.0=0.046153846153846156 valid=390
+r9_J4n1_C95_lmax3p15  FAILED C=0.05129 rho=0.15 lmax=3.15 J=4 n=1 seed=1

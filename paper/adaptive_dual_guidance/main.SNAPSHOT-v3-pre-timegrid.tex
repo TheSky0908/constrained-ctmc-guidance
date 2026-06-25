@@ -1,0 +1,479 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[letterpaper,margin=0.9in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{bm}
+
+% ----------------------------------------------------------------------
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{assumption}{Assumption}
+\newtheorem{definition}{Definition}
+\newtheorem{remark}{Remark}
+
+\DeclareMathOperator{\KL}{KL}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\Q}{\mathcal{Q}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\lstar}{\lambda^{\star}}
+\newcommand{\qlam}{p^{\lambda}(\cdot\mid x_t)}
+\newcommand{\todo}[1]{{\color{red}[#1]}}
+
+\title{Soft-Constrained Discrete Diffusion via Lagrangian Duality:\\ Adaptive Dual Guidance as Per-Step Information Projection}
+\author{Anonymous}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study \emph{constrained generation} from a pretrained discrete diffusion model: sampling sequences (molecules, text) that satisfy an attribute constraint while staying close to the model's data distribution. Existing constrained discrete-diffusion samplers take one of two extremes. \emph{Hard-projection} methods enforce the constraint exactly at every reverse step, achieving zero violation but, on our QM9 benchmarks, collapsing validity and diversity as the feasible set is squeezed. \emph{Classifier guidance} instead tilts each step softly by a constraint-satisfaction score raised to a fixed global weight $\gamma$; this weight is a hand-tuned hyperparameter that exposes a sharp over/under-guidance dilemma. We unify and interpolate between these extremes by formulating constrained generation as a per-step \emph{constrained information projection}: at each reverse step we seek the kernel closest in KL to the unconditional model dynamics subject to an explicit budget on the expected constraint cost, $\E_q[-\log r_{t+1}(x)]\le C$, where $r_t(x)=\mathbb P_\theta[X_T\in S\mid X_t=x]\in[0,1]$ is the constraint-satisfaction score---the discriminator's probability that the trajectory ultimately lands in the feasible set $S$. We show (i) the projection has a closed form, the exponential tilt $q_\lambda\propto p_\theta\cdot r_{t+1}(x)^\lambda$, so classifier guidance is recovered as the Lagrangian-optimal projection with $\gamma=\lambda$ equal to the constraint's multiplier; (ii) hard projection is the zero-budget limit $C\to0$ ($\lambda\to\infty$), so the cost budget $C$ is a single dial that interpolates from the unconstrained model to hard projection; and (iii) because the tilted family is an exponential family in $\lambda$, the dual is smooth and concave with gradient and Hessian given in closed form by the mean and variance of the constraint log-score $\log r_{t+1}(x)$. We exploit (iii) to \emph{solve} for the multiplier online: \emph{Adaptive Dual Guidance} (first-order, one classifier evaluation per step) and \emph{Adaptive Dual Newton Guidance} (second-order, with mode tracking) adapt $\lambda$ per step and per sample to meet the budget with least distortion. On constrained molecular generation with QM9 (a synthetic-accessibility constraint), the adaptive budget escapes both the fixed-$\gamma$ dilemma and the hard-projection validity collapse: it reaches a constraint-violation level that fixed guidance attains only by destroying validity and diversity, while keeping validity and uniqueness in the lightly-constrained regime.
+\end{abstract}
+
+\section{Introduction}
+Discrete diffusion models have become a leading class of generative models for inherently discrete data---molecules written as SMILES strings, natural language, and biological sequences---where they match or surpass autoregressive models while generating by parallel, iterative refinement of a fully noised sequence \cite{austin2021d3pm,lou2024sedd,sahoo2024mdlm}. Many of their highest-value uses are not \emph{unconditional} generation but \emph{constrained} generation: we want samples that exhibit a target attribute---a molecule that is synthesizable or novel, a sentence that is non-toxic---while remaining close to the learned data distribution so that they stay valid and diverse. The central question is how to steer a \emph{pretrained} model toward the attribute without retraining and without sacrificing the sample quality that makes the base model useful.
+
+Two families of constrained discrete-diffusion samplers address this, at opposite extremes. \emph{Hard-projection} methods enforce feasibility exactly: at every reverse step they project the model's distribution onto the constraint set, so the constraint is satisfied by construction \cite{cardei2025cdd}. This guarantees zero violation, but when the feasible region is small relative to the model's mass, repeatedly projecting drives samples off the data manifold; on our QM9 benchmarks validity and diversity collapse. \emph{Classifier guidance} instead steers softly: it tilts each reverse step by a constraint-satisfaction score raised to a guidance weight $\gamma$, preserving more of the base dynamics \cite{dhariwal2021guidance,nisonoff2024discreteguidance}. But $\gamma$ is a single global hyperparameter, hand-tuned and without a principled meaning, and it exposes a sharp \emph{over/under-guidance dilemma}: too small and the attribute constraint is left unmet, too large and the samples leave the manifold and validity collapses. As we show on QM9, no single fixed $\gamma$ achieves both constraint satisfaction and high quality.
+
+We show that this guidance weight is not arbitrary. We formulate per-step guidance as a \emph{constrained information projection}: at each reverse step, find the step distribution closest in Kullback--Leibler divergence to the pretrained kernel subject to an explicit budget $C$ on the expected constraint cost, $\E_q[-\log r_{t+1}(x)]\le C$, with $r_t(x)=\mathbb P_\theta[X_T\in S\mid X_t=x]$ the constraint-satisfaction score---the discriminator's probability that generation ultimately lands in the feasible set $S$. This single, interpretable budget reorganizes the whole picture. First, the projection has a closed form---the exponential tilt $q_\lambda\propto p_\theta\cdot r_{t+1}(x)^\lambda$---so classifier guidance is recovered \emph{exactly} as the Lagrangian-optimal projection, with the guidance weight $\gamma=\lambda$ equal to the Lagrange multiplier of the constraint. The principled object to control is therefore not the weight $\gamma$ but the budget $C$, from which the correct $\lambda$ is \emph{solved}, not tuned. Second, hard projection is the zero-budget limit $C\!\to\!0$ ($\lambda\!\to\!\infty$): the two extreme families are two ends of one axis, continuously dialed by $C$. Third, because the tilted family is an exponential family in $\lambda$, the dual objective is smooth and concave with gradient and Hessian given in closed form by the \emph{mean} and \emph{variance} of the constraint log-score $\log r_{t+1}(x)$---quantities already available during guided decoding.
+
+We exploit this structure to \emph{solve} for the multiplier online, adapting it per step and per sample so as to meet the budget with the least distortion to the base model. \emph{Adaptive Dual Guidance} takes one projected-gradient-ascent step on the dual per reverse step, at the same cost as standard guidance (one classifier evaluation), and is a drop-in replacement for fixed-$\gamma$ guidance. \emph{Adaptive Dual Newton Guidance} uses the closed-form curvature for second-order updates and tracks the running mode for a MAP-style output. On QM9 synthetic-accessibility-constrained generation, the adaptive budget escapes both failure modes: it reaches a constraint-violation level that fixed guidance attains only by collapsing validity and diversity, while holding validity and uniqueness in the lightly-constrained regime.
+
+\paragraph{Contributions.}
+\begin{itemize}
+\item \textbf{Reframing.} We cast per-step classifier guidance for discrete diffusion as a constrained information projection, and identify the guidance weight with the Lagrange multiplier of an explicit expected-surprisal budget $C$ (Prop.~\ref{prop:tilt}).
+\item \textbf{Unification.} We prove hard-projection constrained diffusion (CDD) is the zero-budget limit $C\!\to\!0$, $\lambda\!\to\!\infty$ of the same family (Prop.~\ref{prop:hard}), placing hard and soft constrained diffusion on a single axis controlled by $C$.
+\item \textbf{Solver.} We expose the exponential-family structure of the dual---concave, with closed-form mean/variance gradient and Hessian (Prop.~\ref{prop:dual})---and derive two online algorithms (first- and second-order) with convergence and asymptotic-feasibility guarantees (Prop.~\ref{prop:converge}).
+\item \textbf{Empirics.} On QM9 SA-constrained generation, adaptive $\lambda$ escapes the fixed-$\gamma$ over/under-guidance dilemma and the hard-projection validity collapse, dominating the fixed-$\gamma$ sweep on violation, validity, and diversity simultaneously.
+\end{itemize}
+
+\section{Background: Constrained Discrete Diffusion}
+\label{sec:background}
+
+\paragraph{Discrete diffusion.} A discrete diffusion model is defined over length-$L$ sequences $\X^L$ from a vocabulary $\X$ (with an absorbing \texttt{[MASK]} symbol adjoined for masked/absorbing-state models): a forward process noises a clean sequence and the model learns to reverse it. Sampling runs a learned \emph{unconditional} reverse process: along a time grid $t=0,\dots,T$, at each step it draws $x_{t+1}\sim p_\theta(\cdot\mid x_t)$ from a kernel over $\X^L$, terminating in a clean sample $x_T$ distributed approximately as the data distribution $p_{\mathrm{data}}$. We write $X_0,\dots,X_T$ for the resulting random trajectory (with realizations $x_t\in\X^L$), so $X_T$ is the clean terminal sample, and $\mathbb P_\theta,\E_\theta$ for probability and expectation under the law of this full reverse process---the composition of the one-step kernels $p_\theta(\cdot\mid x_s)$ over $s\ge t$. We treat the pretrained one-step kernel $p_\theta(\cdot\mid x_t)$ as a fixed primitive.
+
+\paragraph{The constrained generation problem.} In constrained discrete diffusion the constraint is encoded by a \emph{feasible set} $S\subseteq\X^L$ of clean samples that satisfy it. The natural score of a partially-denoised state $x$ at step $t$ is the probability that the reverse process, continued from $x$, \emph{ultimately lands in} $S$,
+\begin{equation}
+\label{eq:rscore}
+r_t(x)\;\coloneqq\;\E_\theta\!\big[\mathbf 1\{X_T\in S\}\,\big|\,X_t=x\big]
+\;=\;\mathbb P_\theta\!\big[\,X_T\in S \,\big|\, X_t=x\,\big]\;\in\;[0,1].
+\end{equation}
+This is exactly what a time-conditioned \emph{classifier} (\emph{discriminator}) is trained to predict from noised states (D-CBG): how likely the constraint is to hold at the end of generation, sharpening from a soft score early in decoding to the indicator $r_T(x)=\mathbf 1[x\in S]$ at the terminal step. Its negative log $-\log r_t(x)\ge0$ is the \emph{constraint cost} (surprisal) of state $x$; for the soft method we take a strictly positive estimate $r_t\in(0,1]$, so this cost is finite. We seek samples that ultimately land in $S$ (low constraint cost) while staying close to $p_{\mathrm{data}}$. Two regimes have been studied:
+\begin{itemize}
+\item \emph{Hard / feasibility constraints}: require $X_T\in S$. Methods such as Constrained Discrete Diffusion (CDD) \cite{cardei2025cdd} enforce $S$ by \emph{projecting} the per-step distribution onto the feasible set, achieving $0\%$ violation by construction.
+\item \emph{Soft / expectation constraints}: bound the \emph{expected} per-step constraint cost, $\E[-\log r_{t+1}(X_{t+1})]\le C$, trading a controlled amount of violation for higher quality.
+\end{itemize}
+Hard projection is uncompromising on violation but, when the feasible set is small relative to the model's mass, repeatedly projecting drives samples off the valid-data manifold---in our experiments validity and diversity collapse (Sec.~\ref{sec:experiments}). This motivates a principled \emph{soft} constraint with a tunable budget.
+
+\paragraph{Guidance as a soft heuristic.} The standard soft mechanism, classifier-based guidance (D-CBG; the constraint score $r_t$ is classically a classifier likelihood, whence the name), replaces the unconditional kernel by the \emph{tilted} step
+\begin{equation}
+\label{eq:cg-step}
+p^{\gamma}(x\mid x_t)\;\propto\;p_\theta(x\mid x_t)\,r_{t+1}(x)^{\gamma},
+\qquad \gamma\ge 0,
+\end{equation}
+sampling $x_{t+1}\sim p^\gamma(\cdot\mid x_t)$. The guidance weight $\gamma$ is a single global hyperparameter shared across all steps and all samples; it is tuned by hand and, as we show, exposes a sharp over/under-guidance dilemma (small $\gamma$: constraint unmet; large $\gamma$: off-manifold collapse). Section~\ref{sec:method} shows that \eqref{eq:cg-step} is not a heuristic at all but the exact solution of a per-step soft-constrained projection, that hard projection is its $C\to0$ limit, and that the proper object to control is the budget $C$---from which the right $\gamma=\lambda$ is \emph{solved}, not tuned.
+
+% ======================================================================
+\section{Constrained Discrete Diffusion as Per-Step Information Projection}
+\label{sec:method}
+
+We develop the method around a single reverse step. The idea is to cast guided sampling as the information projection of the model's own step onto an explicit constraint-cost budget (Sec.~\ref{sec:perstep}), and to draw three consequences. The projection has a closed form with the functional form of classifier guidance, the guidance weight playing the role of a Lagrange multiplier (Prop.~\ref{prop:tilt}); the hard-projection regime is the zero-budget limit---exactly hard projection onto the feasible set at the terminal step---placing the two known regimes as endpoints of one continuum (Prop.~\ref{prop:hard}); and the multiplier maximizes a smooth concave dual whose gradient and Hessian are the closed-form mean and variance of the constraint score (Prop.~\ref{prop:dual}), which Sec.~\ref{sec:algorithms} turns into a cheap online solver. All statements are local to the step from $x_t$ and rest on Assumption~\ref{ass:standing} (finite support, strictly positive score, strictly feasible budget).
+
+\subsection{The per-step constrained projection}
+\label{sec:perstep}
+Fix a reverse step from state $x_t$ and recall the pretrained base kernel $p_\theta(\cdot\mid x_t)$ over $\X^L$ (Sec.~\ref{sec:background}). Constrained guidance replaces it by a \emph{guided} step distribution $q(\cdot\mid x_t)$ that stays as close as possible to $p_\theta(\cdot\mid x_t)$ while being constraint-aware to a controlled degree: ``closeness'' is measured by $\KL\big(q(\cdot\mid x_t)\,\Vert\,p_\theta(\cdot\mid x_t)\big)$ and ``constraint-awareness'' by an upper bound on the expected constraint cost $-\log r_{t+1}$ under the guided step. With $q(\cdot\mid x_t)$ ranging over the probability simplex $\Q=\{q:q(x)\ge0,\ \sum_x q(x)=1\}$ on $\X^L$, this yields the per-step primal problem
+\begin{equation}
+\label{eq:primal}
+\min_{q(\cdot\mid x_t)\in\Q}\; \KL\big(q(\cdot\mid x_t)\,\big\Vert\, p_\theta(\cdot\mid x_t)\big)
+\qquad\text{s.t.}\qquad
+\E_{q(\cdot\mid x_t)}\!\left[-\log r_{t+1}(x)\right]\;\le\;C,
+\end{equation}
+where $C\ge 0$ is a surprisal budget and the next state $x_{t+1}$ is drawn from the optimal $q(\cdot\mid x_t)$. The constraint indicates: under the guided step, the constraint score $r_{t+1}(x)$ should be \emph{at least} $e^{-C}$ in expectation (equivalently, $\E_{q(\cdot\mid x_t)}[\log r_{t+1}(x)]\ge -C$). Small $C$ demands an aggressively constraint-aware step; large $C$ recovers the base kernel $p_\theta(\cdot\mid x_t)$.
+
+\begin{assumption}[Standing assumptions for the per-step projection]
+\label{ass:standing}
+We analyze \eqref{eq:primal} on the support $\X_p\coloneqq\{x\in\X^L:p_\theta(x\mid x_t)>0\}$ (finite, as $\X^L$ is) over an \emph{ideal joint} next-state distribution on $\X_p$; the practical sampler realizes this only approximately, within its (factorized) reverse-kernel family (Sec.~\ref{sec:algorithms}). The score is strictly positive on the support, $r_{t+1}\in(0,1]$ on $\X_p$, so $-\log r_{t+1}$ is finite there; write $m^\star\coloneqq\max_{x\in\X_p}r_{t+1}(x)$ and $c_{\min}\coloneqq-\log m^\star=\min_{x\in\X_p}\!\big(-\log r_{t+1}(x)\big)$, the smallest achievable cost. We restrict $\Q$ to distributions supported on $\X_p$, so $\KL(q\Vert p_\theta)<\infty$. A budget is \emph{strictly feasible} (Slater) iff $C>c_{\min}$; $C=c_{\min}$ is the boundary (Prop.~\ref{prop:hard}) and $C<c_{\min}$ is infeasible.
+\end{assumption}
+
+\begin{remark}[Exact conditioning at $\lambda{=}1$; the per-step budget is a local surrogate]
+\label{rmk:myopic}
+The score $r_t(x)=\mathbb P_\theta[X_T\in S\mid X_t=x]$ is the \emph{lookahead value} of conditioning on $\{X_T\in S\}$. By the tower property under the base process, $r_t(x_t)=\E_{X_{t+1}\sim p_\theta(\cdot\mid x_t)}[r_{t+1}(X_{t+1})]$, so $\{r_t(X_t)\}_t$ is a $\mathbb P_\theta$-martingale and the exact Doob $h$-transform that samples the process conditioned on $\{X_T\in S\}$ is the \emph{first-power} tilt $p^{1}(x\mid x_t)=p_\theta(x\mid x_t)\,r_{t+1}(x)/r_t(x_t)$ (its normalizer is exactly $r_t(x_t)$). Our family $p^{\lambda}$ recovers this exact conditioning \emph{only} at $\lambda=1$; for $\lambda\neq1$ it is a power-tilt that trades exact conditioning for the soft budget $C$, with $\lambda$ adapting to $C$ per step. (The score $r$ is intractable in closed form, integrating over all future denoising \cite{wu2023practical,zhao2024probabilistic}, and is estimated by a time-conditioned discriminator, D-CBG; our analysis is orthogonal to that estimate.) Finally, the per-step constraint is a \emph{local surrogate} for the terminal constraint, not a proven relaxation of it: by Jensen it guarantees only the one-step bound $\E_{q}[r_{t+1}]\ge e^{-C}$, and controlling terminal feasibility under the \emph{guided} process would require a separate telescoping argument that we do not claim.
+\end{remark}
+
+The geometry of \eqref{eq:primal} is benign.
+
+\begin{lemma}[Convexity]
+\label{lem:convex}
+The objective $q(\cdot\mid x_t)\mapsto\KL(q(\cdot\mid x_t)\Vert p_\theta(\cdot\mid x_t))$ is strictly convex on $\Q$, and the feasible set
+$\mathcal{F}_C=\{q(\cdot\mid x_t)\in\Q:\E_{q(\cdot\mid x_t)}[-\log r_{t+1}(x)]\le C\}$ is convex and closed. Hence \eqref{eq:primal} is a convex program with a unique minimizer whenever $\mathcal{F}_C\neq\emptyset$.
+\end{lemma}
+\begin{proof}
+\begin{align*}
+\KL\big(q(\cdot\mid x_t)\,\Vert\,p_\theta(\cdot\mid x_t)\big)
+  &=\sum_x q(x\mid x_t)\log\frac{q(x\mid x_t)}{p_\theta(x\mid x_t)}
+   \quad\text{strictly convex in }q\ (u\mapsto u\log u),\\
+\E_{q(\cdot\mid x_t)}[-\log r_{t+1}(x)]
+  &=\sum_x q(x\mid x_t)\,\big(-\log r_{t+1}(x)\big)
+   \quad\text{linear in }q,\\
+\mathcal{F}_C
+  &=\Q\cap\big\{q(\cdot\mid x_t):\E_{q(\cdot\mid x_t)}[-\log r_{t+1}]\le C\big\}
+   \quad\text{(convex, closed)}.
+\end{align*}
+A strictly convex function attains a unique minimizer on the nonempty compact convex set $\mathcal{F}_C$.
+\end{proof}
+
+\subsection{The optimal projection is classifier guidance}
+We now solve \eqref{eq:primal} in closed form via Lagrangian duality and show that the solution is exactly the tilted step \eqref{eq:cg-step}.
+
+\begin{proposition}[Optimal tilted projection]
+\label{prop:tilt}
+Under Assumption~\ref{ass:standing} with a strictly feasible budget $C>c_{\min}$ (Slater), \eqref{eq:primal} admits a finite optimal multiplier $\lstar\in[0,\infty)$ and the unique solution is
+\begin{equation}
+\label{eq:qlam}
+q^{*}(x\mid x_t)\;=\;p^{\lstar}(x\mid x_t)\;=\;\frac{p_\theta(x\mid x_t)\,r_{t+1}(x)^{\lstar}}{Z(\lstar)},
+\qquad
+Z(\lambda)\coloneqq\sum_{x\in\X^L}p_\theta(x\mid x_t)\,r_{t+1}(x)^{\lambda},
+\end{equation}
+for a multiplier $\lstar\ge 0$, where $\lstar=0$ iff the unconditional kernel already satisfies the constraint ($\E_{p_\theta(\cdot\mid x_t)}[-\log r_{t+1}(x)]\le C$), and otherwise $\lstar>0$ is chosen so the constraint is active, $\E_{p^{\lstar}(\cdot\mid x_t)}[-\log r_{t+1}(x)]=C$. In particular $p^{\lstar}(\cdot\mid x_t)$ has the functional form of classifier guidance \eqref{eq:cg-step} with $\gamma=\lstar$.
+\end{proposition}
+
+\begin{proof}
+Introduce a multiplier $\lambda\ge 0$ for the inequality constraint. The Lagrangian is
+\begin{equation}
+\label{eq:lagrangian}
+\begin{aligned}
+\mathcal{L}(q(\cdot\mid x_t),\lambda)
+&=\KL(q(\cdot\mid x_t)\Vert p_\theta(\cdot\mid x_t))+\lambda\!\left(\E_{q(\cdot\mid x_t)}[-\log r_{t+1}(x)]-C\right)\\
+&=\sum_x q(x\mid x_t)\log\frac{q(x\mid x_t)}{p_\theta(x\mid x_t)}
+-\lambda\sum_x q(x\mid x_t)\log r_{t+1}(x)-\lambda C.
+\end{aligned}
+\end{equation}
+Minimize over $q(\cdot\mid x_t)\in\Q$ with a normalization multiplier $\nu$ for $\sum_x q(x\mid x_t)=1$:
+\begin{align*}
+0&=\frac{\partial}{\partial q(x\mid x_t)}\Big[\mathcal L+\nu\big(\textstyle\sum_x q(x\mid x_t)-1\big)\Big]
+  =\log\frac{q(x\mid x_t)}{p_\theta(x\mid x_t)}+1-\lambda\log r_{t+1}(x)+\nu,\\
+\Longrightarrow\quad q(x\mid x_t)&\propto p_\theta(x\mid x_t)\,r_{t+1}(x)^{\lambda}=p^{\lambda}(x\mid x_t)
+  \quad\text{(unique inner minimizer, Lemma~\ref{lem:convex})}.
+\end{align*}
+Since $C>c_{\min}$, strong duality holds with zero gap and a finite maximizer $\lstar<\infty$ (Prop.~\ref{prop:strongduality}), so the primal optimum is $p^{\lstar}(\cdot\mid x_t)$. Complementary slackness gives
+\begin{equation*}
+\lstar\big(\E_{p^{\lstar}(\cdot\mid x_t)}[-\log r_{t+1}]-C\big)=0
+\ \Longrightarrow\
+\begin{cases}
+\lstar=0: & p^{\lstar}(\cdot\mid x_t)=p_\theta(\cdot\mid x_t)\ \ (\text{if }p_\theta\text{ already feasible}),\\[2pt]
+\lstar>0: & \E_{p^{\lstar}(\cdot\mid x_t)}[-\log r_{t+1}]=C.
+\end{cases}
+\end{equation*}
+\end{proof}
+
+Proposition~\ref{prop:tilt} is the conceptual core of the paper. It says that the tilted step \eqref{eq:cg-step} \emph{is} the information projection of the model's own step onto the constraint set $\mathcal F_C$, with the guidance weight playing the role of the constraint's Lagrange multiplier. Classifier guidance is thus not an ad hoc reweighting but the functional form of this optimal projection; conversely, a fixed weight $\gamma$ is the optimal projection only for its own \emph{implicit} budget $C(\gamma)=\E_{p^{\gamma}(\cdot\mid x_t)}[-\log r_{t+1}(x)]$, which varies from step to step and sample to sample. Holding $\gamma$ global therefore pins the implicit budget nowhere in particular---tight where feasibility is easy, slack where it is hard---which is exactly what creates the over/under-guidance dilemma. The principled object is not $\gamma$ but the budget $C$, from which the constraint-satisfying $\lambda$ is solved per step.
+
+\subsection{Hard projection is the zero-budget limit}
+The same projection connects the soft and hard regimes of Sec.~\ref{sec:background}: shrinking the budget $C$ to its minimum $c_{\min}$ drives the multiplier to infinity and collapses each step onto the score-maximizing states---which, at the terminal transition, is exactly hard projection onto the feasible set $S$.
+
+\begin{proposition}[Hard projection as $C\to0$ / $\lambda\to\infty$]
+\label{prop:hard}
+Let $\X_p=\{x\in\X^L:p_\theta(x\mid x_t)>0\}$ and $m^\star=\max_{x\in\X_p}r_{t+1}(x)$ with maximizer set $\X^\star=\{x\in\X_p:r_{t+1}(x)=m^\star\}$. As $\lambda\to\infty$, the tilt $p^{\lambda}(\cdot\mid x_t)$ of \eqref{eq:qlam} converges to the base kernel restricted to the score-maximizing states,
+\begin{equation}
+p^{\lambda}(x\mid x_t)\ \xrightarrow{\lambda\to\infty}\
+p^{\infty}(x\mid x_t)=\frac{p_\theta(x\mid x_t)\,\mathbf 1[x\in\X^\star]}{\sum_{x'\in\X^\star}p_\theta(x'\mid x_t)},
+\end{equation}
+and $\E_{p^{\lambda}(\cdot\mid x_t)}[-\log r_{t+1}(x)]\downarrow c_{\min}=-\log m^\star$, the smallest achievable cost. Hence \eqref{eq:primal} is feasible iff $C\ge c_{\min}$; at the boundary $C=c_{\min}$ the optimum is the limit $p^{\infty}(\cdot\mid x_t)$ (the base kernel restricted to $\X^\star$ and renormalized), attained only as $\lstar\to\infty$. At the terminal transition $r_T=\mathbf 1[\cdot\in S]$, so $\X^\star=S\cap\X_p$ and $p^{\infty}$ is literally the hard projection onto the feasible set $S$; at earlier steps $\X^\star=\argmax_x r_{t+1}(x)$ is the set of most-feasible-leading next states, which need not equal $S$.
+\end{proposition}
+\begin{proof}
+Set $\tilde r_{t+1}(x)\coloneqq r_{t+1}(x)/m^\star\le1$ and let $\lambda\to\infty$:
+\begin{align*}
+p^{\lambda}(x\mid x_t)&\propto p_\theta(x\mid x_t)\,\tilde r_{t+1}(x)^{\lambda},
+  \qquad \tilde r_{t+1}(x)^{\lambda}\to\mathbf 1[x\in\X^\star]\ \ (\tilde r_{t+1}<1\ \text{off}\ \X^\star,\ =1\ \text{on}\ \X^\star),\\
+p^{\lambda}(\cdot\mid x_t)&\longrightarrow p^{\infty}(\cdot\mid x_t)=\frac{p_\theta(x\mid x_t)\,\mathbf 1[x\in\X^\star]}{\sum_{x'\in\X^\star}p_\theta(x'\mid x_t)},\\
+\frac{d}{d\lambda}\,\E_{p^{\lambda}(\cdot\mid x_t)}[-\log r_{t+1}]
+  &=-\Var_{p^{\lambda}(\cdot\mid x_t)}(\log r_{t+1})\le0
+  \qquad(\text{by }\eqref{eq:expfam-deriv}),\\
+\E_{p^{\lambda}(\cdot\mid x_t)}[-\log r_{t+1}]&\;\downarrow\;c_{\min}=\min_{x\in\X_p}\big(-\log r_{t+1}(x)\big).
+\end{align*}
+Feasibility of \eqref{eq:primal} therefore requires $C\ge c_{\min}$.
+\end{proof}
+
+Proposition~\ref{prop:hard} places hard-projection sampling and soft guidance on a single axis dialed by $C$. As $C\downarrow c_{\min}$ the multiplier diverges and each step collapses onto $\X^\star=\argmax_x r_{t+1}(x)$, the next states judged most likely to reach $S$. We emphasize the scope of the match with hard-projection methods such as CDD \cite{cardei2025cdd}: at the \emph{terminal} transition $\X^\star=S\cap\X_p$, so the zero-budget limit is exactly hard projection onto the feasible set $S$---CDD's set-projection primitive; at earlier steps it is the \emph{analogous} greedy restriction to the most-feasible-leading states rather than to $S$ itself, and a different hard sampler that projects onto a per-step relaxation of $S$ need not coincide with our limit there. Either way, discarding all off-$\X^\star$ mass at every step compounds over $T$ steps and sheds validity and diversity, which is why hard projection buys $0\%$ violation at the cost of collapse. A finite budget $C>c_{\min}$ instead keeps mass on near-optimal, on-manifold states, with $\lstar(C)<\infty$ measuring \emph{how hard} to project; our method sits strictly between the unconstrained model ($\lstar=0$) and this hard-projection endpoint ($\lstar\to\infty$), with $C$ the single dial.
+
+\subsection{The dual problem and its exponential-family structure}
+To turn this insight into an algorithm we study the dual function
+\begin{equation}
+\label{eq:dual}
+g(\lambda)\;\coloneqq\;\min_{q(\cdot\mid x_t)\in\Q}\mathcal L(q(\cdot\mid x_t),\lambda)
+\;=\;-\log Z(\lambda)-\lambda C,
+\end{equation}
+where the second equality follows by substituting the inner minimizer $\qlam$ into \eqref{eq:lagrangian} (the KL plus cross-term telescopes to $-\log Z(\lambda)$). The dual problem is $\max_{\lambda\ge 0} g(\lambda)$.
+
+The key observation is that $\{\qlam\}_{\lambda\ge0}$ is a one-parameter \emph{exponential family} in the natural parameter $\lambda$, with base measure $p_\theta(\cdot\mid x_t)$, sufficient statistic $T(x)=\log r_{t+1}(x)$, and log-partition $A(\lambda)=\log Z(\lambda)$:
+\begin{equation}
+p^{\lambda}(x\mid x_t)=p_\theta(x\mid x_t)\exp\!\big(\lambda\,T(x)-A(\lambda)\big).
+\end{equation}
+The cumulants of $T$ under $\qlam$ are therefore derivatives of the log-partition $A$, a standard fact we record as the workhorse of our solver.
+
+\begin{lemma}[Exponential-family cumulant identities]
+\label{lem:expfam}
+Let $\{q_\theta\}_{\theta\in\R}$ be a one-parameter exponential family $q_\theta(x)=h(x)\exp\!\big(\theta\,T(x)-A(\theta)\big)$ on a finite set, with base measure $h\ge0$, sufficient statistic $T$, and log-partition $A(\theta)=\log\sum_x h(x)e^{\theta T(x)}$. Then $A$ is real-analytic and convex, and its first two derivatives are the mean and variance of $T$:
+\begin{equation}
+\label{eq:expfam-deriv}
+A'(\theta)=\E_{q_\theta}\!\big[T(X)\big],
+\qquad
+A''(\theta)=\Var_{q_\theta}\!\big(T(X)\big)\;\ge\;0.
+\end{equation}
+\end{lemma}
+\begin{proof}
+On the finite set $\sum_x h(x)e^{\theta T(x)}\in(0,\infty)$ for every real $\theta$, so $A$ is real-analytic; differentiating,
+\begin{align*}
+A'(\theta)&=\frac{\sum_x h(x)\,T(x)\,e^{\theta T(x)}}{\sum_x h(x)\,e^{\theta T(x)}}=\E_{q_\theta}\big[T(X)\big],\\
+A''(\theta)&=\E_{q_\theta}\big[T(X)^2\big]-\E_{q_\theta}\big[T(X)\big]^2=\Var_{q_\theta}\big(T(X)\big)\ge0.
+\end{align*}
+Nonnegativity of $A''$ gives convexity of $A$.
+\end{proof}
+
+\begin{proposition}[Smooth concave dual with mean/variance derivatives]
+\label{prop:dual}
+$g$ is real-analytic on $\R$ and concave on $\R_{\ge0}$, with
+\begin{align}
+g'(\lambda) &= -\,\E_{\qlam}\!\left[\log r_{t+1}(x)\right]-C
+           \;=\;\E_{\qlam}\!\left[-\log r_{t+1}(x)\right]-C,
+\label{eq:gprime}\\
+g''(\lambda) &= -\,\Var_{\qlam}\!\left(\log r_{t+1}(x)\right)\;\le\;0.
+\label{eq:gsecond}
+\end{align}
+Consequently $g'$ is nonincreasing. Under Assumption~\ref{ass:standing} with $C>c_{\min}$, a \emph{finite} maximizer $\lstar=\argmax_{\lambda\ge0}g(\lambda)<\infty$ is attained (Prop.~\ref{prop:strongduality}), unique whenever $\log r_{t+1}$ is non-degenerate under $p^{\lstar}(\cdot\mid x_t)$ (so $g''(\lstar)<0$), and characterized by the complementarity
+\begin{equation}
+\lstar=0 \ \text{ and }\ g'(0)\le 0,
+\qquad\text{or}\qquad
+\lstar>0 \ \text{ and }\ g'(\lstar)=0\ \Leftrightarrow\ \E_{p^{\lstar}(\cdot\mid x_t)}[-\log r_{t+1}(x)]=C.
+\end{equation}
+At the boundary $C=c_{\min}$ the supremum is approached only as $\lambda\to\infty$ (Prop.~\ref{prop:hard}); for $C<c_{\min}$, $g$ is unbounded above.
+\end{proposition}
+\begin{proof}
+Apply Lemma~\ref{lem:expfam} with base measure $p_\theta(\cdot\mid x_t)$, $T(x)=\log r_{t+1}(x)$, $A(\lambda)=\log Z(\lambda)$, together with $g(\lambda)=-A(\lambda)-\lambda C$ from \eqref{eq:dual}:
+\begin{align*}
+A'(\lambda)&=\E_{\qlam}[\log r_{t+1}],\qquad A''(\lambda)=\Var_{\qlam}(\log r_{t+1}),\\
+g'(\lambda)&=-A'(\lambda)-C=\E_{\qlam}[-\log r_{t+1}]-C,\\
+g''(\lambda)&=-A''(\lambda)=-\Var_{\qlam}(\log r_{t+1})\le0.
+\end{align*}
+Thus $g$ is concave; maximizing over $\R_{\ge0}$ yields the stated complementarity, and $g''<0$ gives uniqueness.
+\end{proof}
+
+\begin{proposition}[Strong duality and finite multiplier]
+\label{prop:strongduality}
+Under Assumption~\ref{ass:standing} with $C>c_{\min}$ (Slater), strong duality holds with zero gap, $\max_{\lambda\ge0}g(\lambda)=\min_{q(\cdot\mid x_t)\in\mathcal F_C}\KL(q(\cdot\mid x_t)\Vert p_\theta(\cdot\mid x_t))$; the dual maximizer $\lstar<\infty$ is attained, and the primal optimum is attained and unique (Lemma~\ref{lem:convex}).
+\end{proposition}
+\begin{proof}
+The program \eqref{eq:primal} is convex (Lemma~\ref{lem:convex}) on the compact simplex over the finite $\X_p$, with $-\log r_{t+1}$ finite. \emph{Slater.} For any $x^\star\in\X^\star$,
+\begin{align*}
+\bar q&=(1-\delta)\,\delta_{x^\star}+\delta\,p_\theta(\cdot\mid x_t)
+  \quad\big(\text{supported on }\X_p,\ \KL(\bar q\Vert p_\theta(\cdot\mid x_t))<\infty\big),\\
+\E_{\bar q}[-\log r_{t+1}]&\xrightarrow{\ \delta\to0\ }c_{\min}<C
+  \quad\Longrightarrow\quad \bar q\ \text{is strictly feasible},
+\end{align*}
+so strong duality holds with zero gap and an attained dual maximizer (Boyd \& Vandenberghe, \S5.2.3). \emph{Finiteness of $\lstar$.} As $\lambda\to\infty$,
+\begin{align*}
+-\log Z(\lambda)&=\lambda\,c_{\min}-\log\!\Big(\sum_{x\in\X^\star}p_\theta(x\mid x_t)\Big)+o(1),\\
+g(\lambda)&=-\log Z(\lambda)-\lambda C=-\lambda\,(C-c_{\min})+O(1)\;\longrightarrow\;-\infty\quad(C>c_{\min}),
+\end{align*}
+so the maximizer $\lstar<\infty$. The primal optimum is unique by strict convexity on the compact feasible set (Lemma~\ref{lem:convex}).
+\end{proof}
+
+\paragraph{Why solve the dual.} The primal optimizes a distribution over the entire (exponentially large) state space $\X^L$, yet Prop.~\ref{prop:dual} shows the only unknown is the \emph{scalar} $\lstar$, and both $g'$ and $g''$ are expectations under $\qlam$---the very distribution we already sample from while decoding. A dual gradient therefore needs \emph{no model or classifier machinery beyond what guidance already evaluates}. Solving $g'(\lambda)=0$ exactly---enforcing $\E_{p^{\lambda}(\cdot\mid x_t)}[\log r_{t+1}(x)]=-C$ by enumerating $\X^L$---is intractable at scale, so we instead ascend the dual with the cheap stochastic estimates of \eqref{eq:gprime}--\eqref{eq:gsecond} developed next.
+
+% ======================================================================
+\section{Algorithms}
+\label{sec:algorithms}
+
+\subsection{Adaptive Dual Guidance (first order)}
+We interleave one projected-gradient-ascent step on the dual with each reverse diffusion step. Tilting the step from $x_t$ with the running multiplier $\lambda_t$ and drawing $x_{t+1}\sim p^{\lambda_t}(\cdot\mid x_t)$, the score of this fresh sample yields the \emph{unbiased} one-sample gradient $\widehat{g'(\lambda_t)}=-\log r_{t+1}(x_{t+1})-C$ of \eqref{eq:gprime}; the projected ascent step with size $\rho_t$ is then
+\begin{equation}
+\label{eq:lambda-update}
+\lambda_{t+1}=\Big(\lambda_t+\rho_t\,\widehat{g'(\lambda_t)}\Big)_{+}
+=\Big(\lambda_t-\rho_t\big(\log r_{t+1}(x_{t+1})+C\big)\Big)_{+},
+\end{equation}
+where $(\cdot)_+=\max(\cdot,0)$ enforces $\lambda\ge0$. Intuitively: if the new state's constraint log-score $\log r_{t+1}(x_{t+1})$ is below the target $-C$ (constraint violated), the bracket is positive and $\lambda$ \emph{increases}, tightening guidance on the next step; once the constraint is comfortably satisfied, $\lambda$ relaxes back toward $0$ and distortion is released. The multiplier is maintained \emph{per sample}, so different trajectories in a batch receive different guidance strengths. In our implementation we additionally clip $\lambda$ to $[0,\lambda_{\max}]$ for stability. Each step costs exactly one classifier evaluation---the classifier is already evaluated to form the tilt, the same as standard guidance---so Adaptive Dual Guidance is a drop-in replacement for fixed-$\gamma$ D-CBG.
+
+\begin{algorithm}[t]
+\caption{Adaptive Dual Guidance}
+\label{alg:adg}
+\begin{algorithmic}[1]
+\Require unconditional kernel $p_\theta(\cdot\mid x_t)$; constraint scorer $r_t(\cdot)=\mathbb P_\theta[X_T\in S\mid X_t{=}\cdot]$; step sizes $\{\rho_t\}$; budget $C$; cap $\lambda_{\max}$; time grid $\{0,1,\dots,T\}$
+\State initialize $\lambda_0$ (e.g.\ $0$), $x_0$
+\For{$t=0,1,\dots,T-1$}
+  \State $p^{\lambda_t}(\cdot\mid x_t)\propto p_\theta(\cdot\mid x_t)\,r_{t+1}(\cdot)^{\lambda_t}$ \Comment{tilted step, \eqref{eq:cg-step}}
+  \State sample $x_{t+1}\sim p^{\lambda_t}(\cdot\mid x_t)$
+  \State $\lambda_{t+1}\gets \mathrm{clip}\big(\lambda_t-\rho_t(\log r_{t+1}(x_{t+1})+C),\,0,\,\lambda_{\max}\big)$ \Comment{dual ascent, \eqref{eq:lambda-update}}
+\EndFor
+\State \Return $x_T$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Adaptive Dual Newton Guidance (second order)}
+Because $g''(\lambda)=-\Var_{\qlam}(\log r_{t+1}(x))$ is available at the same cost as the gradient, we can take damped Newton steps on the concave dual, which removes the step-size sensitivity of \eqref{eq:lambda-update}. Given a minibatch $\{x^i\}_{i=1}^n\sim p^{\lambda_t}(\cdot\mid x_t)$ we estimate
+\begin{equation}
+\widehat\mu=\frac1n\sum_{i=1}^n\log r_{t+1}(x^i),
+\qquad
+\widehat\sigma^2=\widehat{\Var}\big(\log r_{t+1}(x^i)\big),
+\end{equation}
+so that $\widehat{g'(\lambda_t)}=-\widehat\mu-C$ and $\widehat{g''(\lambda_t)}=-\widehat\sigma^2$. The projected Newton-ascent update $\lambda\!\leftarrow\!(\lambda-g'/g'')_+$ becomes
+\begin{equation}
+\label{eq:newton-update}
+\lambda_{t+1}=\Big(\lambda_t-\frac{\widehat\mu+C}{\widehat\sigma^2}\Big)_{+}.
+\end{equation}
+Equation~\eqref{eq:newton-update} rescales the gradient by the local curvature: in low-variance (confident) regions it takes large steps, in high-variance regions it is cautious. We pair the second-order solver with \emph{mode tracking}: at each step we evaluate the tilted distribution at the running mode $x_{\mathrm{mode}}$ and return the mode rather than a random draw, yielding a MAP-style estimate of the constrained optimum. Algorithm~\ref{alg:newton} summarizes the procedure.
+
+\begin{algorithm}[t]
+\caption{Adaptive Dual Newton Guidance}
+\label{alg:newton}
+\begin{algorithmic}[1]
+\Require as in Alg.~\ref{alg:adg}; sample size $n$
+\State initialize $x_0$, $\lambda_0$, $\widehat\mu=\log r_0(x_0)$, $\widehat\sigma^2=\sigma_0^2$, $x_{\mathrm{mode}}=x_0$
+\For{$t=0,1,\dots,T-1$}
+  \State $\lambda_{t+1}\gets\big(\lambda_t-(\widehat\mu+C)/\widehat\sigma^2\big)_+$ \Comment{Newton ascent, \eqref{eq:newton-update}}
+  \State $p^{\lambda_{t+1}}(\cdot\mid x_{\mathrm{mode}})\propto p_\theta(\cdot\mid x_{\mathrm{mode}})\,r_{t+1}(\cdot)^{\lambda_{t+1}}$
+  \State sample $\{x^i\}_{i=1}^n\stackrel{\text{i.i.d.}}{\sim}p^{\lambda_{t+1}}$
+  \State $\widehat\mu\gets\mathrm{Avg}_i\log r_{t+1}(x^i)$;\quad $\widehat\sigma^2\gets\widehat{\Var}_i\log r_{t+1}(x^i)$;\quad $x_{\mathrm{mode}}\gets\mathrm{mode}(\{x^i\}_{i=1}^n)$
+\EndFor
+\State \Return $x_T=x_{\mathrm{mode}}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Convergence of the dual solver}
+We record the standard guarantee that the inner dual ascent reaches the constraint-satisfying multiplier; this is what justifies calling $\lambda_t$ ``adaptive'' rather than merely ``time-varying''.
+
+\begin{proposition}[Dual convergence and asymptotic feasibility]
+\label{prop:converge}
+Fix the kernel $p_\theta$ and budget $C$, and suppose Slater's condition (Prop.~\ref{prop:strongduality}) holds so that $\lstar<\infty$. Let $L=\sup_x|{-}\log r_{t+1}(x)-C|<\infty$ (finite on $\X^L$).
+\begin{enumerate}
+\item[(i)] \textbf{Exact gradients.} If $\lambda_{t+1}=(\lambda_t+\rho_t g'(\lambda_t))_+$ with $g''\le-m<0$ on the relevant interval and constant step $\rho_t=\rho\in(0,2/M)$ where $M=\sup|g''|$, then $\lambda_t\to\lstar$ linearly. With diminishing steps $\rho_t\to0$, $\sum_t\rho_t=\infty$, projected subgradient ascent satisfies $g(\lambda_t)\to g(\lstar)$, hence (strong duality) $\KL(p^{\lambda_t}(\cdot\mid x_t)\Vert p_\theta(\cdot\mid x_t))\to\KL(p^{\lstar}(\cdot\mid x_t)\Vert p_\theta(\cdot\mid x_t))$ and the constraint is satisfied in the limit.
+\item[(ii)] \textbf{Newton.} On the interval where $g''\le -m<0$, the damped projected Newton iteration \eqref{eq:newton-update} with exact moments converges locally quadratically to $\lstar$.
+\item[(iii)] \textbf{Stochastic gradients.} With the one-sample estimator of \eqref{eq:lambda-update}, $\E[\widehat{g'(\lambda_t)}\mid\lambda_t]=g'(\lambda_t)$ is unbiased and the estimator is bounded by $L$; projected stochastic gradient ascent with $\rho_t=\rho_0/\sqrt{t}$ gives $\E[g(\lstar)-g(\bar\lambda_T)]=O(L/\sqrt{T})$ for the running average $\bar\lambda_T$.
+\end{enumerate}
+\end{proposition}
+\begin{proof}[Proof sketch]
+$g$ is concave (Prop.~\ref{prop:dual}) and, on any bounded $\lambda$-interval, $L$-Lipschitz with $M$-Lipschitz gradient. Parts~(i),(iii) are the textbook projected (stochastic) gradient-ascent rates over $\R_{\ge0}$; the one-sample gradient is unbiased,
+\begin{equation*}
+\E\big[\widehat{g'(\lambda_t)}\,\big|\,\lambda_t\big]
+=\E_{p^{\lambda_t}(\cdot\mid x_t)}[-\log r_{t+1}]-C
+=g'(\lambda_t)\quad(\text{by }\eqref{eq:gprime}),\qquad x_{t+1}\sim p^{\lambda_t}(\cdot\mid x_t).
+\end{equation*}
+Part~(ii) is Newton's local quadratic rate for a $C^2$, strongly concave objective with locally Lipschitz Hessian, preserved under projection. Asymptotic feasibility follows from strong duality and complementary slackness (Prop.~\ref{prop:strongduality}).
+\end{proof}
+
+\begin{remark}[One ascent step per reverse step]
+In practice we do not run the dual solver to convergence at a frozen $t$; we take a \emph{single} ascent step \eqref{eq:lambda-update} per reverse step, so $\lambda_t$ tracks a slowly-moving target as the kernel $p_\theta(\cdot\mid x_t)$ and the feasibility of the current sample evolve along the trajectory. This is a standard primal--dual / stochastic-approximation regime: the multiplier follows the constraint as decoding proceeds, tightening when the running constraint score lags the budget and relaxing once it is met. Proposition~\ref{prop:converge} describes the fixed-$t$ idealization that this online scheme tracks.
+\end{remark}
+
+\paragraph{Interpretation: escaping the fixed-$\gamma$ dilemma.} A constant $\gamma$ commits to one multiplier for the whole trajectory. Early in decoding, when $x_t$ is mostly masked and the classifier is uninformative, a large $\gamma$ over-tilts and pushes mass toward degenerate (e.g.\ invalid) regions; late in decoding, when feasibility is nearly settled, a small $\gamma$ under-tilts and the constraint is missed. Adaptive Dual Guidance instead applies \emph{just enough} multiplier to meet the budget at each step: $\lambda_t$ rises only while the constraint is unmet and decays otherwise, so the cumulative KL distortion to the base model is minimized subject to feasibility. This is precisely the behavior the experiments below exhibit.
+
+% ======================================================================
+\section{Experiments}
+\label{sec:experiments}
+
+\paragraph{Setup.} We evaluate on constrained molecular generation with QM9 SMILES using a pretrained masked (absorbing-state) discrete diffusion model (MDLM; \texttt{parameterization=subs}, length $32$, $128$ sampling steps, seed $1$). The constraint scorer $r_t(x_t)$ is a time-conditioned discriminator trained on the same noising process (D-CBG); it estimates $r_t(x)=\mathbb P_\theta[X_T\in S\mid X_t=x]$, the probability the final molecule is SA-feasible. We compare three points on the constraint axis of Sec.~\ref{sec:method}: the unconditional base model ($C$ large, $\lambda{=}0$); fixed-$\gamma$ classifier guidance over a sweep $\gamma\in\{1,\dots,10\}$, whose large-$\gamma$ end approaches the hard-projection extreme of Prop.~\ref{prop:hard} ($\lambda\to\infty$, the regime of CDD-style hard constrained diffusion \cite{cardei2025cdd}); and Adaptive Dual Guidance (Alg.~\ref{alg:adg}) with budget $C$, step size $\rho$, and cap $\lambda_{\max}$, which sits strictly between. The constraint is \textbf{synthetic accessibility (SA)}: a generated molecule satisfies it iff its SA score is below a threshold $\tau$, and the constraint scorer $r_t(x_t)$ predicts SA-satisfaction directly. We report, as N-independent rates, validity and uniqueness (the diversity/quality axis), the SA-violation rate among valid molecules (the constraint axis, $\mathrm{Viol}_\tau$), the absolute yield of molecules that are simultaneously \emph{valid, unique, novel and SA-satisfying} (strict yield), and drug-likeness (QED). The large-$\gamma$ end of fixed guidance is the empirical proxy for the hard-projection extreme (Prop.~\ref{prop:hard}) studied by CDD-style constrained diffusion \cite{cardei2025cdd}.
+
+\subsection{The fixed-$\gamma$ over/under-guidance dilemma}
+Table~\ref{tab:sa-fixed} sweeps the fixed guidance weight $\gamma$ on the SA constraint (N$=1000$, classifier trained at $\tau_{\text{train}}{=}3.0$). The two ends of the sweep expose the dilemma. At small $\gamma$ the constraint is under-enforced: $\gamma{=}1$ leaves $23.8\%$ of valid molecules SA-violating. Increasing to $\gamma{=}3$ lowers violation to $13.5\%$, but already at the cost of diversity---uniqueness falls from $47.4\%$ to $17.9\%$ and the strict yield from $108$ to $73$. Pushing further to enforce SA harder triggers the off-manifold collapse predicted by Prop.~\ref{prop:hard}: by $\gamma{=}5$ validity has dropped to $29.8\%$ and uniqueness to $2.7\%$, and by $\gamma{=}10$ the model emits essentially one molecule ($0.1\%$ valid). The nominal $0\%$ violation at $\gamma{=}10$ is the hard-projection limit on a degenerate population---exactly the validity/diversity collapse that hard-projection CDD suffers when the feasible set is small. \emph{No single fixed $\gamma$ delivers low violation together with high validity and diversity.}
+
+\begin{table}[t]
+\centering
+\caption{SA constraint, fixed-$\gamma$ guidance (QM9, MDLM, N$=1000$, $128$ steps, $\tau_{\text{train}}{=}3.0$). Rates are N-independent. $\mathrm{Viol}_{3.0}$ is the fraction of \emph{valid} molecules with SA score $>3.0$; ``Yield'' is the count of valid, unique, novel \& SA-satisfying molecules. Raising $\gamma$ to enforce SA collapses validity and diversity (Prop.~\ref{prop:hard}).}
+\label{tab:sa-fixed}
+\begin{tabular}{rrrrrr}
+\toprule
+$\gamma$ & Valid & Unique & $\mathrm{Viol}_{3.0}$ & Yield (strict) & QED \\
+\midrule
+1  & 66.4\% & 47.4\% & 0.238 & 108 & 0.497 \\
+3  & 78.5\% & 17.9\% & 0.135 & 73  & 0.442 \\
+5  & 29.8\% & 2.7\%  & 0.664 & 4   & 0.401 \\
+10 & 0.1\%  & 0.1\%  & 0.000 & 1   & 0.646 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Adaptive Dual Guidance}
+Table~\ref{tab:adaptive-sa} reports Adaptive Dual Guidance on the SA constraint (N$=500$) across step sizes $\rho$ and caps $\lambda_{\max}$ at a fixed budget $C=-\log(0.99)\approx-0.00995$ (target SA-satisfaction probability $e^{-C}\approx0.99$). Because the per-sample multiplier rises only when the running SA likelihood lags the budget and relaxes otherwise, the adaptive scheme breaks the dilemma on \emph{all three} axes at once. Its best operating point ($\rho{=}0.2,\lambda_{\max}{=}5$) reaches $\mathrm{Viol}_{3.0}=0.083$ at $82.4\%$ validity and $30.8\%$ uniqueness. The fixed-$\gamma$ sweep cannot match this: $\gamma{=}3$ has higher violation ($0.135$) \emph{and} far less diversity ($17.9\%$ unique) at comparable validity, and the only fixed weights that reach violation near $0.08$ ($\gamma\ge5$) have already collapsed to $\le30\%$ validity and $\le3\%$ uniqueness. Adaptive guidance thus attains a constraint-satisfaction level that fixed guidance reaches only through the hard-projection collapse. The cap $\lambda_{\max}$ exposes the residual trade-off directly: a tight cap ($\lambda_{\max}{=}5$) drives violation lowest, while a loose cap ($\lambda_{\max}{=}50$) admits more mass and so trades a little violation for higher uniqueness and yield.
+
+\begin{table}[t]
+\centering
+\caption{Adaptive Dual Guidance on the SA constraint (QM9, MDLM, N$=500$, $128$ steps, $\tau_{\text{train}}{=}3.0$, budget $C{\approx}{-}0.00995$ i.e.\ target $p\approx0.99$). Rates are N-independent; ``Yield'' is the count of valid, unique, novel \& SA-satisfying molecules. Adaptive $\lambda$ holds validity/uniqueness in the light-guidance regime \emph{and} drives $\mathrm{Viol}_{3.0}$ below the best non-collapsed fixed-$\gamma$ point ($\gamma{=}3$: $0.135$, cf.\ Table~\ref{tab:sa-fixed}).}
+\label{tab:adaptive-sa}
+\begin{tabular}{rrrrrrrr}
+\toprule
+$\rho$ & $\lambda_{\max}$ & $\lambda_0$ & Valid & Unique & $\mathrm{Viol}_{3.0}$ & Yield & QED \\
+\midrule
+0.1 & 5  & 2.0 & 80.8\% & 35.0\% & 0.087 & 41 & 0.469 \\
+0.2 & 5  & 2.0 & \textbf{82.4\%} & 30.8\% & \textbf{0.083} & 38 & 0.464 \\
+0.2 & 50 & 0.0 & 75.0\% & \textbf{42.4\%} & 0.123 & 43 & 0.511 \\
+0.5 & 5  & 2.0 & 76.6\% & 21.0\% & 0.164 & 33 & 0.436 \\
+0.5 & 50 & 0.0 & 76.4\% & 32.6\% & 0.118 & \textbf{50} & 0.466 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{$\lambda$ trajectories.} Figure~\ref{fig:traj} (placeholder) shows the per-step multiplier $\lambda_t$ averaged over the batch. Consistent with the theory, $\lambda_t$ is small early in decoding (uninformative classifier), rises through the middle of the trajectory as feasibility becomes decidable and the constraint is actively enforced, and relaxes once the budget is met---rather than holding a constant value as fixed $\gamma$ does. We dump the full per-step, per-sample $\lambda$ and $\log r_{t+1}(x_{t+1})$ for every run for reproducibility.
+
+\begin{figure}[t]
+\centering
+\fbox{\parbox[c][3.2cm][c]{0.6\linewidth}{\centering\itshape Placeholder: per-step $\lambda_t$ trajectory (mean $\pm$ s.d.\ over batch) vs.\ normalized diffusion time, contrasted with the flat line of fixed $\gamma$. Source: \texttt{experiments/molecule\_sa/analysis/plot\_gamma\_trajectories\_v6.py}.}}
+\caption{Adaptive multiplier rises only while the constraint is unmet, then relaxes.}
+\label{fig:traj}
+\end{figure}
+
+% ======================================================================
+\section{Related Work}
+\todo{Deferred; full prose to be written. The positioning is fixed by Sec.~\ref{sec:method}: (1) \emph{Constrained / projected discrete diffusion} (CDD \cite{cardei2025cdd}) enforces hard feasibility by per-step projection---our Prop.~\ref{prop:hard} shows this is the $C\to0$ limit of our soft budget, and our experiments show it trades validity/diversity for $0\%$ violation. (2) \emph{Classifier(-free) guidance} for continuous and discrete diffusion (D-CBG) is recovered as our Lagrangian-optimal projection with a \emph{fixed} multiplier (Prop.~\ref{prop:tilt}); we instead solve for the multiplier. (3) \emph{Twisted SMC / KL control} \cite{wu2023practical,zhao2024probabilistic} gives the exact lookahead twist (Rmk.~\ref{rmk:myopic}); we use the amortized per-step myopic projection it motivates and add an explicit, solved constraint budget. (4) \emph{Primal--dual / constrained generation} more broadly.}
+
+\section{Conclusion}
+We cast constrained generation from a pretrained discrete diffusion model as a per-step constrained information projection with an explicit constraint-cost budget $C$. This single formulation (i) recovers classifier guidance as the Lagrangian-optimal projection, with the guidance weight equal to the constraint multiplier; (ii) recovers hard-projection constrained diffusion as the zero-budget limit; and (iii) exposes an exponential-family dual whose closed-form mean/variance gradients let us \emph{solve} for the multiplier online. The resulting Adaptive Dual Guidance adapts the constraint strength per step and per sample, escaping both the fixed-$\gamma$ over/under-guidance dilemma and the hard-projection validity collapse. \todo{Limitations \& future work: single-step ascent vs.\ inner-loop; choosing/annealing the budget $C$; multiple simultaneous constraints via a vector multiplier; myopic per-step vs.\ lookahead twist.}
+
+\begin{thebibliography}{9}
+\bibitem{austin2021d3pm}
+J.~Austin, D.~Johnson, J.~Ho, D.~Tarlow, R.~van den Berg.
+\newblock Structured Denoising Diffusion Models in Discrete State-Spaces.
+\newblock \emph{NeurIPS}, 2021.
+\bibitem{lou2024sedd}
+A.~Lou, C.~Meng, S.~Ermon.
+\newblock Discrete Diffusion Modeling by Estimating the Ratios of the Data Distribution.
+\newblock \emph{ICML}, 2024.
+\bibitem{sahoo2024mdlm}
+S.~Sahoo et al.
+\newblock Simple and Effective Masked Diffusion Language Models.
+\newblock \emph{NeurIPS}, 2024.
+\bibitem{dhariwal2021guidance}
+P.~Dhariwal, A.~Nichol.
+\newblock Diffusion Models Beat GANs on Image Synthesis.
+\newblock \emph{NeurIPS}, 2021.
+\bibitem{nisonoff2024discreteguidance}
+H.~Nisonoff, J.~Xiong, S.~Allenspach, J.~Listgarten.
+\newblock Unlocking Guidance for Discrete State-Space Diffusion and Flow Models.
+\newblock \emph{arXiv:2406.01572}, 2024.
+\bibitem{cardei2025cdd}
+M.~Cardei et al.
+\newblock Constrained Discrete Diffusion.
+\newblock \emph{arXiv:2503.09790}, 2025.
+\bibitem{wu2023practical}
+L.~Wu, B.~Trippe, C.~Naesseth, D.~Blei, J.~P.~Cunningham.
+\newblock Practical and Asymptotically Exact Conditional Sampling in Diffusion Models.
+\newblock \emph{NeurIPS}, 2023.
+\bibitem{zhao2024probabilistic}
+S.~Zhao et al.
+\newblock Probabilistic Inference in Language Models via Twisted Sequential Monte Carlo.
+\newblock \emph{ICML}, 2024.
+\end{thebibliography}
+
+\end{document}

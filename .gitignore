@@ -18,6 +18,16 @@ hydra_logs/
 *.safetensors
 *.bin
 
+# experiment runtime roots (checkpoints, raw sample/traj dumps, hydra run dirs).
+# Curated summary CSVs live under experiments/<task>/results/ and ARE tracked.
+outputs/
+logs/
+experiments/*/logs/
+
+# raw lambda-trajectory dumps (large, reproducible). Kept on disk, not in git.
+*_traj.json
+**/*_traj.json
+
 # wandb run dirs (large binary metadata, recreatable)
 wandb/
 

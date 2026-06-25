@@ -1,0 +1,17 @@
+# Base-model-generated QM9 SMILES labelled by QM9-train membership
+# (novel=1 / rediscovered=0), mixed with QM9-train molecules as guaranteed
+# not-novel (label 0). Built by
+# experiments/molecule_novelty/build_novelty_dataset.py. Used to train the
+# p(novel | x_t) D-CBG / adaptive-dual guidance classifier (class 1 = novel —
+# the desirable class to guide toward). Same SMILES tokenizer as qm9.
+train: qm9_novel
+valid: qm9_novel
+tokenizer_name_or_path: yairschiff/qm9-tokenizer
+cache_dir: "/local/scratch/zhiheng/guidance/.data_cache"
+wrap: False
+streaming: False
+override_cache: False
+add_special_tokens: True
+label_col: novel
+label_col_pctile: null  # `novel` is already binary; no thresholding
+num_classes: 2

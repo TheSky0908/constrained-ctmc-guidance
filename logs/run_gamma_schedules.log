@@ -1,79 +1,0 @@
-[Sun May 24 09:57:03 PM EDT 2026] === running linear_increasing gmin=1.0 gmax=5.0 -> logs/sa_dcbg_n500_linear_increasing_gmin1.0_gmax5.0_trainTau3.0.log ===
-Sampling:  98%|█████████▊| 126/128 [00:06<00:00, 19.25it/s, NFEs=80, nan_check=0, prob_check=1][A
-Sampling:  98%|█████████▊| 126/128 [00:06<00:00, 19.25it/s, NFEs=81, nan_check=0, prob_check=1][A
-Sampling:  98%|█████████▊| 126/128 [00:06<00:00, 19.25it/s, NFEs=82, nan_check=0, prob_check=1][A
-Sampling: 100%|██████████| 128/128 [00:06<00:00, 17.62it/s, NFEs=82, nan_check=0, prob_check=1][A
-                                                                                               [ASA-eval batches: 100%|██████████| 125/125 [13:07<00:00,  6.28s/it]                                                                  [sa_eval] generated 500 samples
-[sa_eval] loading QM9 train for novelty check…
-
-=== SA-constrained MDLM D-CBG evaluation ===
-  Total samples       : 500
-  Valid               :   361 (72.20%)
-  Unique (of valid)   :   250
-  Novel (of valid)    :   103 (28.53%)
-  Novel & SA<=3.0     :    60  <-- CDD "Novel" column
-  QED on novel-strict : 0.508  <-- CDD "QED" column
-  Violation rates (frac valid with SA > tau):
-    tau=3.0: 13.02%
-    tau=3.5: 10.25%
-    tau=4.0: 8.86%
-    tau=4.5: 8.31%
-
-Reference (CDD paper, MDLM_D-CBG gamma=3):
-  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
-[sa_eval] wrote samples + stats to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax5.0_trainTau3.0_samples.json
-[sa_eval] wrote summary row to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax5.0_trainTau3.0_results.csv
-[Sun May 24 10:10:24 PM EDT 2026] sampling done. samples=/local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax5.0_trainTau3.0_samples.json csv=/local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax5.0_trainTau3.0_results.csv
-[Sun May 24 10:10:24 PM EDT 2026] === running linear_increasing gmin=1.0 gmax=8.0 -> logs/sa_dcbg_n500_linear_increasing_gmin1.0_gmax8.0_trainTau3.0.log ===
-Sampling:  97%|█████████▋| 124/128 [00:06<00:00, 19.62it/s, NFEs=80, nan_check=0, prob_check=1][A
-Sampling:  97%|█████████▋| 124/128 [00:06<00:00, 19.62it/s, NFEs=81, nan_check=0, prob_check=1][A
-Sampling:  99%|█████████▉| 127/128 [00:06<00:00, 19.69it/s, NFEs=81, nan_check=0, prob_check=1][A
-Sampling:  99%|█████████▉| 127/128 [00:06<00:00, 19.69it/s, NFEs=82, nan_check=0, prob_check=1][A
-                                                                                               [ASA-eval batches: 100%|██████████| 125/125 [13:08<00:00,  6.22s/it]                                                                  [sa_eval] generated 500 samples
-[sa_eval] loading QM9 train for novelty check…
-
-=== SA-constrained MDLM D-CBG evaluation ===
-  Total samples       : 500
-  Valid               :   369 (73.80%)
-  Unique (of valid)   :   247
-  Novel (of valid)    :   103 (27.91%)
-  Novel & SA<=3.0     :    55  <-- CDD "Novel" column
-  QED on novel-strict : 0.518  <-- CDD "QED" column
-  Violation rates (frac valid with SA > tau):
-    tau=3.0: 13.55%
-    tau=3.5: 9.49%
-    tau=4.0: 8.13%
-    tau=4.5: 7.86%
-
-Reference (CDD paper, MDLM_D-CBG gamma=3):
-  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
-[sa_eval] wrote samples + stats to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax8.0_trainTau3.0_samples.json
-[sa_eval] wrote summary row to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax8.0_trainTau3.0_results.csv
-[Sun May 24 10:23:47 PM EDT 2026] sampling done. samples=/local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax8.0_trainTau3.0_samples.json csv=/local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_linear_increasing_gmin1.0_gmax8.0_trainTau3.0_results.csv
-[Sun May 24 10:23:47 PM EDT 2026] === running quadratic_increasing gmin=1.0 gmax=5.0 -> logs/sa_dcbg_n500_quadratic_increasing_gmin1.0_gmax5.0_trainTau3.0.log ===
-Sampling:  98%|█████████▊| 126/128 [00:06<00:00, 17.83it/s, NFEs=82, nan_check=0, prob_check=1][A
-Sampling:  98%|█████████▊| 126/128 [00:06<00:00, 17.83it/s, NFEs=83, nan_check=0, prob_check=1][A
-Sampling:  98%|█████████▊| 126/128 [00:06<00:00, 17.83it/s, NFEs=84, nan_check=0, prob_check=1][A
-Sampling: 100%|██████████| 128/128 [00:06<00:00, 16.52it/s, NFEs=84, nan_check=0, prob_check=1][A
-                                                                                               [ASA-eval batches: 100%|██████████| 125/125 [13:04<00:00,  6.23s/it]                                                                  [sa_eval] generated 500 samples
-[sa_eval] loading QM9 train for novelty check…
-
-=== SA-constrained MDLM D-CBG evaluation ===
-  Total samples       : 500
-  Valid               :   340 (68.00%)
-  Unique (of valid)   :   242
-  Novel (of valid)    :   104 (30.59%)
-  Novel & SA<=3.0     :    54  <-- CDD "Novel" column
-  QED on novel-strict : 0.485  <-- CDD "QED" column
-  Violation rates (frac valid with SA > tau):
-    tau=3.0: 16.18%
-    tau=3.5: 12.35%
-    tau=4.0: 8.82%
-    tau=4.5: 8.24%
-
-Reference (CDD paper, MDLM_D-CBG gamma=3):
-  Valid=436, Novel=14, QED=0.37, Viol: 50.5/48.6/46.1/44.7% @ tau=3.0/3.5/4.0/4.5
-[sa_eval] wrote samples + stats to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_quadratic_increasing_gmin1.0_gmax5.0_trainTau3.0_samples.json
-[sa_eval] wrote summary row to /local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_quadratic_increasing_gmin1.0_gmax5.0_trainTau3.0_results.csv
-[Sun May 24 10:37:05 PM EDT 2026] sampling done. samples=/local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_quadratic_increasing_gmin1.0_gmax5.0_trainTau3.0_samples.json csv=/local/scratch/zhiheng/guidance/outputs/qm9/mdlm_no-guidance/mdlm_dcbg_sa_n500_quadratic_increasing_gmin1.0_gmax5.0_trainTau3.0_results.csv
-[Sun May 24 10:37:05 PM EDT 2026] all 3 schedules done

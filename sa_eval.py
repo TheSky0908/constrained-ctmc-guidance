@@ -23,6 +23,7 @@ Run:
 import json
 import os
 import sys
+import time
 
 import datasets
 import hydra
@@ -157,6 +158,11 @@ def main(config: omegaconf.DictConfig) -> None:
   # ── Sample ──────────────────────────────────────────────────────────────────
   samples: list[str] = []
   ad_trajectories: list = []  # per-batch trajectories, only populated for adaptive_dual
+  # Time ONLY the sampling loop (the cost of drawing the N samples), excluding
+  # checkpoint loading and the downstream SA/novelty evaluation.
+  if torch.cuda.is_available():
+    torch.cuda.synchronize()
+  sample_t0 = time.time()
   for _ in tqdm(range(config.sampling.num_sample_batches),
                 desc='SA-eval batches', leave=False):
     sample_ids = pretrained.sample()
@@ -167,7 +173,12 @@ def main(config: omegaconf.DictConfig) -> None:
     if traj is not None:
       ad_trajectories.append(traj)
       pretrained._last_adaptive_dual_traj = None  # avoid double-counting
-  print(f'[sa_eval] generated {len(samples)} samples')
+  if torch.cuda.is_available():
+    torch.cuda.synchronize()
+  sampling_seconds = time.time() - sample_t0
+  print(f'[sa_eval] generated {len(samples)} samples '
+        f'in {sampling_seconds:.1f}s '
+        f'({sampling_seconds/max(len(samples),1):.3f}s/sample)')
   if ad_trajectories:
     print(f'[sa_eval] captured adaptive_dual trajectory for '
           f'{len(ad_trajectories)} batches × {len(ad_trajectories[0])} steps')
@@ -236,6 +247,7 @@ def main(config: omegaconf.DictConfig) -> None:
           'n_novel_strict_sa3.0': n_novel_strict,
           'qed_novel_strict': qed_novel_strict,
           'viol_rates': {str(k): v for k, v in viol_rates.items()},
+          'sampling_seconds': sampling_seconds,
       }, f, indent=2)
     print(f'[sa_eval] wrote samples + stats to {samples_path}')
 
@@ -253,6 +265,7 @@ def main(config: omegaconf.DictConfig) -> None:
         'novel_strict_sa3.0': n_novel_strict,
         'qed_novel_strict': qed_novel_strict,
         **{f'viol_tau_{tau}': viol_rates[tau] for tau in SA_THRESHOLDS},
+        'sampling_seconds': sampling_seconds,
     }
     pd.DataFrame([row]).to_csv(csv_path, index=False)
     print(f'[sa_eval] wrote summary row to {csv_path}')

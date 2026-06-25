@@ -1,0 +1,7 @@
+seed_J4n1_C95_lmax2p9_s2  lmax=2.9 J=4 n=1 seed=2  viol3.0=0.06878306878306878 valid=378
+seed_J4n1_C95_lmax2p9_s3  lmax=2.9 J=4 n=1 seed=3  viol3.0=0.07107843137254902 valid=408
+seed_J4n1_C95_lmax2p9_s6  lmax=2.9 J=4 n=1 seed=6  viol3.0=0.0665024630541872 valid=406
+seed_J4n1_C95_lmax2p9_s4  lmax=2.9 J=4 n=1 seed=4  viol3.0=0.06313131313131314 valid=396
+seed_J4n1_C95_lmax2p9_s7  lmax=2.9 J=4 n=1 seed=7  viol3.0=0.09359605911330049 valid=406
+seed_J4n1_C95_lmax2p9_s5  lmax=2.9 J=4 n=1 seed=5  viol3.0=0.05597964376590331 valid=393
+seed_J4n1_C95_lmax2p9_s8  lmax=2.9 J=4 n=1 seed=8  viol3.0=0.05412371134020619 valid=388

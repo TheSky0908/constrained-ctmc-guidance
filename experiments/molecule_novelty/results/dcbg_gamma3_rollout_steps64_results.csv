@@ -1,0 +1,2 @@
+method,gamma,gamma_schedule,gamma_C,gamma_rho,gamma_lambda_max,condition,n_total,valid,unique,valid_novel,unique_novel,qed_novel,novel_rate,viol
+mdlm_dcbg_novelty,3,,0.2231,0.5,50.0,1,500,78,78,74,74,0.47218672954065455,0.9487179487179487,0.05128205128205132

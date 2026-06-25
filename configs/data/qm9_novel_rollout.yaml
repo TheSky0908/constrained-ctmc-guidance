@@ -1,0 +1,19 @@
+# Pretrained-model-rollout dataset for the eq.(3) novelty classifier. Each row
+# is a model-generated intermediate state x_t (already tokenized, with mask
+# tokens) + its normalized step time `t` + the `novel` label of the rollout
+# trajectory's terminal molecule. Built by
+# experiments/molecule_novelty/build_rollout_dataset.py. Train the classifier
+# with `training.classifier_rollout=True time_conditioning=True` so the loss
+# consumes (x_t, t) directly instead of forward-noising clean data. Same SMILES
+# tokenizer as qm9 (only used for decoding/vocab; rows are pre-tokenized).
+train: qm9_novel_rollout
+valid: qm9_novel_rollout
+tokenizer_name_or_path: yairschiff/qm9-tokenizer
+cache_dir: "/local/scratch/zhiheng/guidance/.data_cache"
+wrap: False
+streaming: False
+override_cache: False
+add_special_tokens: True
+label_col: novel
+label_col_pctile: null  # `novel` is already binary; no thresholding
+num_classes: 2

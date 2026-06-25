@@ -136,6 +136,9 @@ class Diffusion(L.LightningModule):
     elif self.config.backbone == 'hf_dit':
       self.backbone = transformers.AutoModelForMaskedLM.from_pretrained(
         config.model.pretrained_model_name_or_path, trust_remote_code=True)
+    elif self.config.backbone == 'hf_mdlm':
+      # Pretrained kuleshov-group/mdlm-owt wrapped to the repo's DIT interface.
+      self.backbone = models.hf_mdlm.HFMDLMBackbone(self.config)
     else:
       raise NotImplementedError(
         f"Backbone {self.config.backbone} not implemented.")
@@ -872,7 +875,8 @@ class Diffusion(L.LightningModule):
 
   def sample(
     self,
-    eps=1e-5):  # Note: differs from self.config.training.sampling_eps
+    eps=1e-5,  # Note: differs from self.config.training.sampling_eps
+    prefix_ids=None):
     """Generate samples from (ema) model.
 
       Supports both AR and diffusion sampling.
@@ -882,6 +886,12 @@ class Diffusion(L.LightningModule):
         - classifier-based guidance
           - CBG / FUDGE,
           - NOS / PPLM.
+
+      Args:
+        prefix_ids: optional (B, P) long tensor of prompt tokens to hold fixed
+          at the leading P positions (prefix-conditioned continuation, e.g.
+          RealToxicityPrompts). Only supported for diffusion sampling. When
+          set, ``config.sampling.batch_size`` must equal B.
     """
     # WARNING: Lightning auto-casting is not working in this method.
     if not self.config.eval.disable_ema:
@@ -899,18 +909,32 @@ class Diffusion(L.LightningModule):
           tokenizer=self.tokenizer,
           config=self.config, logger=False).to(self.device)
         classifier_model.eval()
+        # Allow the classifier's time-conditioning to be set INDEPENDENTLY of
+        # the base model's global `time_conditioning`. The DiT classifier always
+        # carries its sigma-embedding weights (architecture is identical either
+        # way), so toggling this only controls whether the real noise level σ_t
+        # is fed in (True) or zeroed (False) — see classifier._process_sigma.
+        # This lets us pair a time-DEPENDENT discriminator with a time-INDEPENDENT
+        # base MDLM. Default null → keep whatever the global config gave it.
+        clf_time_cond = omegaconf.OmegaConf.select(
+            self.config, 'guidance.classifier_time_conditioning', default=None)
+        if clf_time_cond is not None:
+          classifier_model.time_conditioning = bool(clf_time_cond)
       else:
         classifier_model = None
     else:
       classifier_model, cond = None, None
 
     if self.parameterization == 'ar':
+      if prefix_ids is not None:
+        raise NotImplementedError(
+          'prefix_ids is only supported for diffusion sampling.')
       samples = self._ar_sample(
         classifier_model=classifier_model, cond=cond)
     else:  # Diffusion sampling
       samples = self._diffusion_sample(
         classifier_model=classifier_model, cond=cond,
-        eps=eps)
+        eps=eps, prefix_ids=prefix_ids)
     if not self.config.eval.disable_ema:
       self._restore_non_ema_params()
     return samples
@@ -1164,11 +1188,26 @@ class Diffusion(L.LightningModule):
     classifier_model: typing.Optional[classifier.Classifier] = None,
     cond: typing.Optional[torch.tensor] = None,
     eps: float = 1e-5,  # Note: differs from self.config.training.sampling_eps
+    prefix_ids: typing.Optional[torch.tensor] = None,
   ):
     xt = self._sample_prior(
       self.config.sampling.batch_size,
       self.config.model.length
     ).to(self.device)
+
+    # Prefix-conditioned continuation: pin the prompt tokens at the leading
+    # positions. For absorbing-state diffusion these are preserved automatically
+    # by the per-step ``copy_flag`` (non-mask positions are never overwritten);
+    # we also re-clamp after every step so the contract holds for any diffusion
+    # type and for guidance paths that resample all positions.
+    prefix_len = 0
+    if prefix_ids is not None:
+      prefix_ids = prefix_ids.to(self.device)
+      assert prefix_ids.shape[0] == xt.shape[0], (
+        f'prefix batch {prefix_ids.shape[0]} != sampling batch {xt.shape[0]}')
+      prefix_len = prefix_ids.shape[1]
+      xt[:, :prefix_len] = prefix_ids
+    self._prefix_len = prefix_len
 
     timesteps = torch.linspace(
       1, eps, self.config.sampling.steps + 1, device=self.device)
@@ -1199,6 +1238,39 @@ class Diffusion(L.LightningModule):
           self.config, 'guidance.gamma_C', default=-math.log(0.8)))
       ad_lambda_max = float(omegaconf.OmegaConf.select(
           self.config, 'guidance.gamma_lambda_max', default=50.0))
+      # Update-order switch for the dual ascent.
+      #   'update_first'  (default): evaluate log r at the CURRENT state x_t,
+      #       update λ, THEN draw x_{t+1} with the updated λ. (Original code.)
+      #   'sample_first'             : draw x_{t+1} with the CURRENT λ, then
+      #       update λ using log r at the NEW state x_{t+1} (eval'd at its own
+      #       noise level σ_s), leaving it for the next step. This matches
+      #       Algorithm 1 of the paper (sample → update).
+      ad_update_order = str(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_adual_update_order',
+          default='update_first'))
+      assert ad_update_order in ('update_first', 'sample_first'), (
+          f'unknown gamma_adual_update_order={ad_update_order!r}')
+      # ── First-order inner-loop solve (paper Algorithm 2) ──────────────
+      # Master switch. When OFF (default) the single-sample, single-iteration
+      # dual update above (update_first / sample_first) runs UNCHANGED.
+      # When ON, each outer step k freezes x_{t_k} and (approximately) solves
+      # the per-step dual λ*_k = argmax_{λ≥0} g_k(λ) by projected gradient
+      # ascent: draw n i.i.d. samples x^i ~ p^λ'(·|x_{t_k}), form the unbiased
+      # estimate ĝ'_k = -Avg_i log r(x^i) - C, step λ' ← clip(λ'+ρĝ'_k,0,λ_max),
+      # repeat up to J times with ε-tol early stop, then advance x_{t_{k+1}}
+      # with the solved λ*_k. The expensive diffusion forward (NFE) is computed
+      # ONCE per step and cached; only the (cheap) classifier is re-run n·J×.
+      ad_inner_loop = bool(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_adual_inner_loop', default=False))
+      ad_n_inner = int(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_adual_n_inner', default=4))  # J
+      ad_n_mc = int(omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_adual_n_mc', default=4))      # n
+      ad_eps_tol = omegaconf.OmegaConf.select(
+          self.config, 'guidance.gamma_adual_eps_tol', default=None)
+      ad_eps_tol = None if ad_eps_tol is None else float(ad_eps_tol)
+      assert ad_n_inner >= 1 and ad_n_mc >= 1, (
+          f'gamma_adual_n_inner/n_mc must be ≥1, got J={ad_n_inner}, n={ad_n_mc}')
       lambda_t = torch.full((bsz_init,), ad_lambda_init, device=self.device)
       ad_traj = []  # per-step (mean, max) of λ for logging
     for i in pbar:
@@ -1244,11 +1316,69 @@ class Diffusion(L.LightningModule):
             move_chance_s=move_chance_s,
             cache=cache)
         elif self.config.guidance.method == 'cbg':
-          if adaptive_dual:
-            # Algm 1 of adaptive_dual_guidance.pdf: project-grad-ascent on the
-            # dual variable λ. g'(λ) = -E_q[log p(y|x)] - C, so we ascend with
+          if adaptive_dual and ad_inner_loop:
+            # ---- inner-loop solve (paper Algorithm 2) ------------------
+            # Freeze x_t, do ONE diffusion forward (populate / reuse cache),
+            # solve the per-step dual λ*_k with a first-order inner loop
+            # (n MC samples, up to J iters, ε-tol early stop) that re-runs
+            # ONLY the classifier, then advance x_{t+1} with the solved λ*_k.
+            _, _, cache = self._cbg_denoise(
+              classifier_model=classifier_model,
+              conditioning_class=self.config.guidance.condition,
+              gamma=lambda_t,
+              use_approx=self.config.guidance.use_approx,
+              xt=xt,
+              time_conditioning=sigma_t,
+              move_chance_t=move_chance_t,
+              move_chance_s=move_chance_s,
+              cache=cache)  # discard the sample; we only need the cache
+            lambda_star, _ = self._adual_inner_solve(
+              lambda_t=lambda_t,
+              log_x_theta=cache['log_x_theta'],
+              classifier_log_prob=cache['classifier_log_prob'],
+              xt=xt,
+              move_chance_t=move_chance_t,
+              move_chance_s=move_chance_s,
+              sigma_s=sigma_s,
+              classifier_model=classifier_model,
+              conditioning_class=self.config.guidance.condition,
+              n_mc=ad_n_mc,
+              n_inner=ad_n_inner,
+              rho=ad_rho,
+              C=ad_C,
+              lambda_max=ad_lambda_max,
+              eps_tol=ad_eps_tol)
+            gamma_t = lambda_star  # advance with this step's solved multiplier
+            xs, q_xs, cache = self._cbg_denoise(
+              classifier_model=classifier_model,
+              conditioning_class=self.config.guidance.condition,
+              gamma=gamma_t,
+              use_approx=self.config.guidance.use_approx,
+              xt=xt,
+              time_conditioning=sigma_t,
+              move_chance_t=move_chance_t,
+              move_chance_s=move_chance_s,
+              cache=cache)
+            # Log λ* used for this draw + log p(y|x_{t+1}) at its own σ_s,
+            # mirroring the sample_first trajectory format.
+            with torch.no_grad():
+              log_p_y_xs = classifier_model.get_log_probs(
+                  xs, sigma_s)[..., self.config.guidance.condition]  # (B,)
+            ad_traj.append({
+                't_norm': float(t_scalar_for_gamma),
+                'lambda': lambda_star.detach().cpu().numpy().tolist(),  # len B
+                'log_p_y': log_p_y_xs.detach().cpu().numpy().tolist(),  # len B
+                'mean_lambda': float(lambda_star.mean()),
+                'max_lambda': float(lambda_star.max()),
+                'mean_log_p_y': float(log_p_y_xs.mean()),
+            })
+            lambda_t = lambda_star  # warm-start next step's inner solve
+          elif adaptive_dual and ad_update_order == 'update_first':
+            # ---- update_first (original) -------------------------------
+            # Project-grad-ascent on the dual variable λ BEFORE drawing the
+            # next state. g'(λ) = -E_q[log p(y|x)] - C, so we ascend with
             #   λ_{k+1} = (λ_k - ρ·(log p(y|x_t) + C))_+
-            # We use the current x_t as a single-sample estimate of E_q[...].
+            # using the current x_t as a single-sample estimate of E_q[...].
             with torch.no_grad():
               log_p_y_xt = classifier_model.get_log_probs(
                   xt, sigma_t)[..., self.config.guidance.condition]  # (B,)
@@ -1270,18 +1400,63 @@ class Diffusion(L.LightningModule):
             # with adaptive λ the gamma factor differs per step, but cache
             # contents are still correct. The outer allclose-check below
             # invalidates the cache when state changes.
+            xs, q_xs, cache = self._cbg_denoise(
+              classifier_model=classifier_model,
+              conditioning_class=self.config.guidance.condition,
+              gamma=gamma_t,
+              use_approx=self.config.guidance.use_approx,
+              xt=xt,
+              time_conditioning=sigma_t,
+              move_chance_t=move_chance_t,
+              move_chance_s=move_chance_s,
+              cache=cache)
+          elif adaptive_dual and ad_update_order == 'sample_first':
+            # ---- sample_first (paper Algorithm 1) ----------------------
+            # Draw x_{t+1} with the CURRENT λ, then update λ from the NEW
+            # state's log-score for the next step:
+            #   x_{t+1} ~ p(·|x_t) · p(y|·)^{λ_k}
+            #   λ_{k+1} = (λ_k - ρ·(log p(y|x_{t+1}) + C))_+
+            # The update uses an unbiased one-sample estimate of g'(λ_k) at the
+            # drawn x_{t+1}, evaluated at its own (less-noisy) level σ_s.
+            gamma_t = lambda_t  # tensor (B,); λ used to draw THIS step
+            xs, q_xs, cache = self._cbg_denoise(
+              classifier_model=classifier_model,
+              conditioning_class=self.config.guidance.condition,
+              gamma=gamma_t,
+              use_approx=self.config.guidance.use_approx,
+              xt=xt,
+              time_conditioning=sigma_t,
+              move_chance_t=move_chance_t,
+              move_chance_s=move_chance_s,
+              cache=cache)
+            with torch.no_grad():
+              log_p_y_xs = classifier_model.get_log_probs(
+                  xs, sigma_s)[..., self.config.guidance.condition]  # (B,)
+            # Log the λ used for THIS draw alongside the score of the drawn
+            # state, then advance λ for the next step.
+            ad_traj.append({
+                't_norm': float(t_scalar_for_gamma),
+                'lambda': lambda_t.detach().cpu().numpy().tolist(),    # list len B
+                'log_p_y': log_p_y_xs.detach().cpu().numpy().tolist(), # list len B
+                'mean_lambda': float(lambda_t.mean()),
+                'max_lambda': float(lambda_t.max()),
+                'mean_log_p_y': float(log_p_y_xs.mean()),
+            })
+            lambda_t = torch.clamp(
+                lambda_t - ad_rho * (log_p_y_xs + ad_C),
+                min=0.0, max=ad_lambda_max)
           else:
             gamma_t = self._compute_gamma_t(t_scalar_for_gamma)
-          xs, q_xs, cache = self._cbg_denoise(
-            classifier_model=classifier_model,
-            conditioning_class=self.config.guidance.condition,
-            gamma=gamma_t,
-            use_approx=self.config.guidance.use_approx,
-            xt=xt,
-            time_conditioning=sigma_t,
-            move_chance_t=move_chance_t,
-            move_chance_s=move_chance_s,
-            cache=cache)
+            xs, q_xs, cache = self._cbg_denoise(
+              classifier_model=classifier_model,
+              conditioning_class=self.config.guidance.condition,
+              gamma=gamma_t,
+              use_approx=self.config.guidance.use_approx,
+              xt=xt,
+              time_conditioning=sigma_t,
+              move_chance_t=move_chance_t,
+              move_chance_s=move_chance_s,
+              cache=cache)
         elif self.config.guidance.method == 'nos':
           xs, q_xs, cache = self._nos_denoise(
             classifier_model=classifier_model,
@@ -1305,6 +1480,10 @@ class Diffusion(L.LightningModule):
         # Disable caching
         cache = None
       xt = xs
+      if prefix_len > 0:
+        # Re-pin the prompt prefix (no-op for absorbing-state, but guarantees
+        # the contract under uniform diffusion / full-resample guidance).
+        xt[:, :prefix_len] = prefix_ids
     if adaptive_dual and ad_traj:
       # Brief stats: mean/max λ and mean log p(y|x_t) at the start, middle,
       # and end of sampling. Useful to confirm dual variable is responding.
@@ -1531,6 +1710,39 @@ class Diffusion(L.LightningModule):
           xt_jumps, time_conditioning.repeat(seq_len * self.vocab_size)
         )[..., conditioning_class].reshape(bsz, seq_len, self.vocab_size)
 
+    # Build the guided posterior p^γ(·|x_t) ∝ p_θ(·|x_t) · p(y|·)^γ and sample.
+    guided_probs, copy_flag = self._cbg_guided_probs(
+      log_x_theta=log_x_theta,
+      classifier_log_prob=classifier_log_prob,
+      gamma=gamma,
+      xt=xt,
+      move_chance_t=move_chance_t,
+      move_chance_s=move_chance_s)
+    # Sample from guided posterior
+    xs = _sample_categorical(guided_probs)
+    if self.diffusion == 'absorbing_state':
+      xs = torch.where(copy_flag.to(bool), xt, xs)
+    return xs, guided_probs, {'log_x_theta': log_x_theta,
+                              'classifier_log_prob': classifier_log_prob}
+
+  def _cbg_guided_probs(
+      self,
+      log_x_theta: torch.tensor,
+      classifier_log_prob: torch.tensor,
+      gamma,
+      xt: torch.tensor,
+      move_chance_t: torch.tensor,
+      move_chance_s: torch.tensor,
+  ) -> typing.Tuple[torch.tensor, typing.Optional[torch.tensor]]:
+    """Form the guided posterior p^γ(·|x_t) ∝ p_θ(·|x_t)·p(y|·)^γ from a cached
+    diffusion forward (``log_x_theta``) and per-jump classifier log-probs.
+
+    Pulled out of ``_cbg_denoise`` so the adaptive-dual inner loop can re-build
+    the tilted posterior for many different γ at a FROZEN x_t WITHOUT re-running
+    the diffusion model. ``gamma`` may be a Python float or a (B,) tensor.
+    Returns ``(guided_probs, copy_flag)``; ``copy_flag`` is None for uniform
+    diffusion (only the absorbing-state path pins already-revealed positions).
+    """
     # Compute unguided posterior
     if self.diffusion == 'absorbing_state':
       diffusion_log_probs = log_x_theta + torch.log(
@@ -1554,6 +1766,7 @@ class Diffusion(L.LightningModule):
       gamma_b = gamma.view(-1, 1, 1)
     else:
       gamma_b = gamma
+    copy_flag = None
     with torch.no_grad():
       if self.diffusion == 'absorbing_state':
         guided_log_probs = (gamma_b * classifier_log_prob) + diffusion_log_probs
@@ -1567,12 +1780,76 @@ class Diffusion(L.LightningModule):
           f"Diffusion type {self.diffusion} not implemented.")
 
     guided_probs = guided_log_probs.softmax(dim=-1)
-    # Sample from guided posterior
-    xs = _sample_categorical(guided_probs)
-    if self.diffusion == 'absorbing_state':
-      xs = torch.where(copy_flag.to(bool), xt, xs)
-    return xs, guided_probs, {'log_x_theta': log_x_theta,
-                              'classifier_log_prob': classifier_log_prob}
+    return guided_probs, copy_flag
+
+  def _adual_inner_solve(
+      self,
+      *,
+      lambda_t: torch.tensor,
+      log_x_theta: torch.tensor,
+      classifier_log_prob: torch.tensor,
+      xt: torch.tensor,
+      move_chance_t: torch.tensor,
+      move_chance_s: torch.tensor,
+      sigma_s: torch.tensor,
+      classifier_model: classifier.Classifier,
+      conditioning_class: int,
+      n_mc: int,
+      n_inner: int,
+      rho: float,
+      C: float,
+      lambda_max: float,
+      eps_tol: typing.Optional[float],
+  ) -> typing.Tuple[torch.tensor, torch.tensor]:
+    """First-order inner loop solving the frozen-step dual (paper Algorithm 2).
+
+    At a FIXED x_t, approximately solve λ*_k = argmax_{λ≥0} g_k(λ), whose
+    (super)gradient is g'_k(λ) = -E_{x~p^λ(·|x_t)}[log p(y|x)] - C, via projected
+    gradient ascent:
+
+        for j = 1..J:
+          {x^i}_{i=1}^n  ~ p^{λ'}(·|x_t)         # cheap: reuse cached fwd
+          ĝ'  = -Avg_i log p(y | x^i)  -  C       # eval'd at σ_s
+          if |ĝ'| ≤ ε_tol:  break
+          λ'  ← clip(λ' + ρ·ĝ',  0,  λ_max)
+
+    Per-sample early stop: once an element's |ĝ'| ≤ ε_tol it is frozen for the
+    rest of the loop. The diffusion model is NOT called here — only the
+    classifier, n·J times (batchable). Returns (λ* of shape (B,), last ĝ').
+    """
+    lam = lambda_t.clone()
+    gbar = torch.zeros_like(lam)
+    # `active[b]` stays True until sample b's dual residual falls within ε_tol.
+    active = torch.ones_like(lam, dtype=torch.bool)
+    for _ in range(n_inner):
+      # Tilted posterior at the current λ' (no diffusion forward).
+      guided_probs, copy_flag = self._cbg_guided_probs(
+        log_x_theta=log_x_theta,
+        classifier_log_prob=classifier_log_prob,
+        gamma=lam,
+        xt=xt,
+        move_chance_t=move_chance_t,
+        move_chance_s=move_chance_s)
+      # n i.i.d. samples; score each with the classifier at its own σ_s.
+      log_r_sum = torch.zeros_like(lam)
+      for _i in range(n_mc):
+        xi = _sample_categorical(guided_probs)
+        if self.diffusion == 'absorbing_state':
+          xi = torch.where(copy_flag.to(bool), xt, xi)
+        with torch.no_grad():
+          log_r_sum = log_r_sum + classifier_model.get_log_probs(
+            xi, sigma_s)[..., conditioning_class]  # (B,)
+      log_r_mean = log_r_sum / n_mc
+      gbar = -log_r_mean - C  # unbiased estimate of g'_k(λ')
+      if eps_tol is not None:
+        active = active & (gbar.abs() > eps_tol)
+        if not bool(active.any()):
+          break
+        step = torch.where(active, rho * gbar, torch.zeros_like(gbar))
+      else:
+        step = rho * gbar
+      lam = torch.clamp(lam + step, min=0.0, max=lambda_max)
+    return lam, gbar
 
   def _nos_denoise(
       self,

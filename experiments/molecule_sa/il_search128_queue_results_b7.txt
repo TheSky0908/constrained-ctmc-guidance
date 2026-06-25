@@ -1,0 +1,2 @@
+r7_J4n1_C99_lmax2p5_r15  C=0.01005 rho=0.15 l0=2.0 lmax=2.5 J=4 n=1 seed=1  viol3.0=0.06377551020408163 valid=392
+r7_J4n1_C90_lmax2p5_r15  C=0.10536 rho=0.15 l0=2.0 lmax=2.5 J=4 n=1 seed=1  viol3.0=0.061381074168797956 valid=391
